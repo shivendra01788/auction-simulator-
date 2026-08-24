@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL Multiplayer Auction Portal</title>
+    <style>
+        :root {
+            --rcb: #CC1213; --csk: #FDB813; --mi: #004BA0; --kkr: #3A225D;
+            --srh: #FF6600; --dc: #00008B; --pbks: #DD1F2D; --rr: #EA1A85;
+            --gt: #1B2133; --lsg: #0057E2;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #0f172a; color: #f8fafc; }
+        .gateway { max-width: 450px; margin: 80px auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; }
+        .gateway input { width: 90%; padding: 12px; margin: 10px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 1rem; }
+        .btn { background: #38bdf8; color: #0f172a; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.95rem; margin: 4px; }
+        .btn:hover { background: #7dd3fc; }
+        .btn-retention { background: #a855f7; color: white; }
+        .btn-retention:hover { background: #c084fc; }
+        .btn-danger { background: #ef4444; color: #fff; }
+
+        .dashboard { display: none; max-width: 1400px; margin: 0 auto; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; }
+        
+        .main-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+
+        .team-box { padding: 12px; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; transition: transform 0.1s; position: relative; margin-bottom: 10px; }
+        .team-box:hover { transform: scale(1.01); }
+        .team-RCB { background: var(--rcb); } .team-CSK { background: var(--csk); color: #000; }
+        .team-MI { background: var(--mi); } .team-KKR { background: var(--kkr); }
+        .team-SRH { background: var(--srh); } .team-DC { background: var(--dc); }
+        .team-PBKS { background: var(--pbks); } .team-RR { background: var(--rr); }
+        .team-GT { background: var(--gt); } .team-LSG { background: var(--lsg); }
+
+        .claimed-tag { font-size: 0.75rem; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; color: #fff; }
+        .role-badge { display: inline-block; font-size: 0.7rem; background: rgba(255,255,255,0.2); border-radius: 4px; padding: 2px 5px; margin-right: 3px; margin-top: 5px; }
+
+        .timer-display { font-size: 2.5rem; color: #f59e0b; font-weight: bold; }
+
+        .history-feed { height: 350px; overflow-y: auto; background: #0f172a; padding: 10px; border-radius: 6px; border: 1px solid #334155; font-family: monospace; }
+        .log-entry { font-size: 0.85rem; padding: 4px 0; border-bottom: 1px dashed #1e293b; }
+        .log-BID { color: #38bdf8; }
+        .log-SOLD { color: #4ade80; font-weight: bold; }
+        .log-UNSOLD { color: #ef4444; }
+        .log-RETENTION { color: #c084fc; font-weight: bold; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #1e293b; padding: 25px; border-radius: 8px; width: 80%; max-width: 650px; max-height: 80vh; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #334155; padding: 8px; text-align: left; }
+        th { background: #0f172a; }
+    </style>
+</head>
+<body>
+
+    <div id="gateway-screen" class="gateway">
+        <h1>🏏 IPL Mega Auction</h1>
+        <p>Enter coach name & room code to join</p>
+        <input type="text" id="username-input" placeholder="Coach Name (e.g. Gambhir)" />
+        <input type="text" id="roomcode-input" placeholder="4-Digit Room Code (to Join)" />
+        <div>
+            <button class="btn" onclick="createRoom()">Create New Room</button>
+            <button class="btn" onclick="joinRoom()">Join Room</button>
+        </div>
+        <p id="gateway-error" style="color: #ef4444; font-weight: bold;"></p>
+    </div>
+
+    <div id="dashboard-screen" class="dashboard">
+        <div class="header-bar">
+            <h2>Room Code: <span id="display-room-code" style="color: #38bdf8;">-</span></h2>
+            <div>Coach: <strong id="display-username">-</strong> | Franchise: <strong id="display-team" style="color: #f59e0b;">None</strong></div>
+        </div>
+
+        <div id="admin-panel" style="display: none; background: #334155; padding: 10px 20px; border-radius: 8px; margin-bottom: 15px;">
+            <small>👑 <strong>Host Simulation Controls:</strong></small>
+            <button class="btn" onclick="adminAutoBid()">Simulate Rival Bid</button>
+            <button class="btn" onclick="adminFastForward(10)">Fast-Forward 10 Players</button>
+        </div>
+
+        <div class="main-layout">
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="card">
+                    <small>Player Lot: <strong id="player-progress">1 / 577</strong></small>
+                    <h1 id="player-name" style="color: #38bdf8; margin: 10px 0;">Loading...</h1>
+                    <p>Role: <strong id="player-role">-</strong> | Rating: <strong id="player-rating" style="color: #4ade80;">-</strong>/100</p>
+                    <p>Base Price: ₹<span id="base-price">0</span>L</p>
+                    <hr style="border-color: #334155;">
+                    <h2>Highest Bid: ₹<span id="highest-bid">0</span>L</h2>
+                    <h3>Leading Franchise: <span id="highest-bidder" style="color: #f43f5e;">No Bids</span></h3>
+                    <p>Timer: <span id="timer" class="timer-display">8</span>s</p>
+                    <h3 id="auction-status" style="color: #f59e0b;">LIVE</h3>
+
+                    <hr style="border-color: #334155;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button class="btn" id="btn-quick-bid" onclick="submitBid()" style="padding: 12px 24px; font-size: 1.1rem; background: #22c55e;">
+                                Raise Bid (+₹<span id="next-increment-label">5</span>L)
+                            </button>
+                            <span style="color: #94a3b8; font-size: 0.9rem;">
+                                Target Bid: <strong>₹<span id="next-bid-target">0</span>L</strong>
+                            </span>
+                        </div>
+                        <div>
+                            <small style="display:block; margin-bottom: 2px;">Retentions (Max 6):</small>
+                            <button class="btn btn-retention" onclick="retainPlayer(false)">Retain Capped</button>
+                            <button class="btn btn-retention" onclick="retainPlayer(true)">Retain Uncapped (₹4Cr)</button>
+                        </div>
+                    </div>
+                    <p id="error-message" style="color: #ef4444; font-weight: bold; margin-top: 10px;"></p>
+                </div>
+
+                <div class="card">
+                    <h3>📜 Auction Broadcast & Activity Log</h3>
+                    <div id="history-feed" class="history-feed"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>IPL Franchises</h3>
+                <small style="color: #94a3b8; display: block; margin-bottom: 10px;">Click team to Claim or inspect Roster</small>
+                <div id="teams-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="squad-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-team-title"></h2>
+            <p id="modal-team-summary"></p>
+            <div id="modal-squad-list"></div>
+            <button class="btn btn-danger" onclick="closeModal()" style="margin-top: 15px;">Close</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let myTeam = null;
+        let isHostUser = false;
+        let globalTeamsState = {};
+
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        function initAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+
+        function getNextBidIncrement(currentBid) {
+            if (currentBid < 100) return 5;
+            if (currentBid < 200) return 10;
+            if (currentBid < 500) return 25;
+            return 50;
+        }
+
+        function playSound(type) {
+            initAudio();
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'bid') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.12);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                osc.start(now); osc.stop(now + 0.12);
+            } else if (type === 'sold') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.setValueAtTime(150, now + 0.15);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now); osc.stop(now + 0.35);
+            }
+        }
+
+        function createRoom() {
+            const username = document.getElementById('username-input').value.trim();
+            if (!username) return alert("Please enter your name!");
+            socket.emit('createRoom', { username });
+        }
+
+        function joinRoom() {
+            const username = document.getElementById('username-input').value.trim();
+            const roomCode = document.getElementById('roomcode-input').value.trim();
+            if (!username || !roomCode) return alert("Please enter name and room code!");
+            socket.emit('joinRoom', { roomCode, username });
+        }
+
+        socket.on('roomJoined', (data) => {
+            document.getElementById('gateway-screen').style.display = 'none';
+            document.getElementById('dashboard-screen').style.display = 'block';
+            document.getElementById('display-room-code').innerText = data.roomCode;
+            document.getElementById('display-username').innerText = document.getElementById('username-input').value;
+
+            isHostUser = data.isHost;
+            if (isHostUser) document.getElementById('admin-panel').style.display = 'block';
+
+            updatePlayerUI(data.auction, data.currentIndex);
+            renderTeams(data.teams);
+        });
+
+        socket.on('teamAssigned', (teamCode) => {
+            myTeam = teamCode;
+            document.getElementById('display-team').innerText = teamCode;
+        });
+
+        socket.on('updateTeams', (teams) => {
+            globalTeamsState = teams;
+            renderTeams(teams);
+        });
+
+        socket.on('bidUpdated', (auction) => {
+            updatePlayerUI(auction);
+            playSound('bid');
+            document.getElementById('error-message').innerText = "";
+        });
+
+        socket.on('timerUpdate', (time) => {
+            document.getElementById('timer').innerText = time;
+        });
+
+        socket.on('auctionEnded', (data) => {
+            document.getElementById('auction-status').innerText = data.status;
+            renderTeams(data.teams);
+            playSound(data.isSold ? 'sold' : 'unsold');
+        });
+
+        socket.on('nextPlayer', (data) => {
+            updatePlayerUI(data.auction, data.currentIndex);
+            renderTeams(data.teams);
+            document.getElementById('error-message').innerText = "";
+        });
+
+        socket.on('logEvent', (log) => {
+            const feed = document.getElementById('history-feed');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${log.type}`;
+            const timeStr = new Date().toLocaleTimeString().split(' ')[0];
+            entry.innerText = `[${timeStr}] ${log.text}`;
+            feed.prepend(entry);
+        });
+
+        socket.on('errorMsg', (msg) => {
+            document.getElementById('error-message').innerText = msg;
+            document.getElementById('gateway-error').innerText = msg;
+        });
+
+        function updatePlayerUI(auction, index) {
+            if (index) document.getElementById('player-progress').innerText = `${index} / 577`;
+            document.getElementById('player-name').innerText = auction.player.name;
+            document.getElementById('player-role').innerText = auction.player.role;
+            document.getElementById('player-rating').innerText = auction.player.rating;
+            document.getElementById('base-price').innerText = auction.player.basePrice;
+            document.getElementById('highest-bid').innerText = auction.highestBid;
+            document.getElementById('highest-bidder').innerText = auction.highestBidder;
+            document.getElementById('timer').innerText = auction.timer;
+            document.getElementById('auction-status').innerText = auction.status;
+            
+            const inc = getNextBidIncrement(auction.highestBid);
+            document.getElementById('next-increment-label').innerText = inc;
+            document.getElementById('next-bid-target').innerText = auction.highestBid + inc;
+        }
+
+        function renderTeams(teams) {
+            globalTeamsState = teams;
+            const container = document.getElementById('teams-container');
+            container.innerHTML = "";
+
+            for (let teamCode in teams) {
+                const team = teams[teamCode];
+                const div = document.createElement('div');
+                div.className = `team-box team-${teamCode}`;
+                
+                const ownerText = team.claimedByName ? `Owner: ${team.claimedByName}` : `[ Click to Claim ]`;
+
+                const batCount = team.squad.filter(p => p.role.includes("Batter")).length;
+                const bowCount = team.squad.filter(p => p.role.includes("Bowler")).length;
+                const arCount = team.squad.filter(p => p.role.includes("All-Rounder")).length;
+                const wkCount = team.squad.filter(p => p.role.includes("Wicketkeeper")).length;
+                const uncappedCount = team.squad.filter(p => p.isUncapped).length;
+
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size: 1.1rem;">${teamCode}</span>
+                        <span>(${team.squad.length}/25)</span>
+                    </div>
+                    <small>Purse: ₹${team.purse}L</small><br>
+                    <div>
+                        <span class="role-badge">BAT: ${batCount}</span>
+                        <span class="role-badge">BOW: ${bowCount}</span>
+                        <span class="role-badge">AR: ${arCount}</span>
+                        <span class="role-badge">WK: ${wkCount}</span>
+                        <span class="role-badge" style="background:rgba(168,85,247,0.4)">UNC: ${uncappedCount}</span>
+                    </div>
+                    <span class="claimed-tag">${ownerText}</span>
+                `;
+
+                div.onclick = () => handleTeamClick(teamCode);
+                container.appendChild(div);
+            }
+        }
+
+        function handleTeamClick(teamCode) {
+            if (!myTeam) {
+                socket.emit('claimTeam', { teamCode });
+            } else {
+                openSquadModal(teamCode);
+            }
+        }
+
+        function openSquadModal(teamCode) {
+            const team = globalTeamsState[teamCode];
+            if (!team) return;
+
+            document.getElementById('modal-team-title').innerText = `${teamCode} Squad Roster`;
+            document.getElementById('modal-team-summary').innerText = 
+                `Purchased: ${team.squad.length}/25 Players | Spent: ₹${team.spent}L | Remaining Purse: ₹${team.purse}L`;
+
+            let html = `<table><tr><th>Player</th><th>Role</th><th>Category</th><th>Rating</th><th>Price</th></tr>`;
+            team.squad.forEach(p => {
+                html += `<tr>
+                    <td>${p.name}</td>
+                    <td>${p.role}</td>
+                    <td>${p.isUncapped ? 'Uncapped' : 'Capped'}</td>
+                    <td>${p.rating}</td>
+                    <td>₹${p.basePrice}L</td>
+                </tr>`;
+            });
+            html += `</table>`;
+
+            document.getElementById('modal-squad-list').innerHTML = html;
+            document.getElementById('squad-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('squad-modal').style.display = 'none';
+        }
+
+        function submitBid() {
+            initAudio();
+            socket.emit('placeBid');
+        }
+
+        function retainPlayer(isUncapped) {
+            initAudio();
+            socket.emit('retainPlayer', { isUncapped });
+        }
+
+        function adminAutoBid() {
+            socket.emit('adminAutoBid');
+        }
+
+        function adminFastForward(count) {
+            socket.emit('adminFastForward', { count });
+        }
+    </script>
+</body>
+</html>
