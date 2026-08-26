@@ -5,7 +5,7 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 
-// Enable CORS so your Netlify frontend can talk to your Render backend
+// CORS enabled for cross-origin communication (Netlify frontend -> Render backend)
 const io = new Server(server, {
     cors: {
         origin: "*",
@@ -19,12 +19,9 @@ const INITIAL_PURSE = 12000; // ₹120 Crore (in Lakhs)
 const SQUAD_MAX = 25;
 const TEAM_CODES = ["RCB", "CSK", "MI", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"];
 
-// Official Retention Slabs (in Lakhs)
-const CAPPED_SLABS = [1800, 1400, 1100, 1800, 1400];
-const UNCAPPED_SLAB = 400;
-
 const rooms = {};
 
+// Dynamic bid increment logic
 function getNextBidIncrement(currentBid) {
     if (currentBid < 100) return 5;       // Below ₹1 Cr: +₹5L
     if (currentBid < 200) return 10;      // ₹1 Cr – ₹2 Cr: +₹10L
@@ -32,35 +29,55 @@ function getNextBidIncrement(currentBid) {
     return 50;                            // Above ₹5 Cr: +₹50L
 }
 
+// Fixed 577 Player Pool with Accurate Marquee Categories
 function generate577PlayerPool() {
-    const starNames = [
-        "Rishabh Pant", "Shreyas Iyer", "KL Rahul", "Yuzvendra Chahal", "Arshdeep Singh",
-        "Mitchell Starc", "Jos Buttler", "Mohammed Shami", "Mohammed Siraj", "Liam Livingstone",
-        "David Miller", "Kagiso Rabada", "Ravichandran Ashwin", "Marcus Stoinis", "Glenn Maxwell",
-        "Venkatesh Iyer", "Quinton de Kock", "Phil Salt", "Josh Hazlewood", "Bhuvneshwar Kumar"
+    const marqueePlayers = [
+        { name: "Rishabh Pant", role: "Wicketkeeper", basePrice: 200, rating: 95 },
+        { name: "Shreyas Iyer", role: "Batter", basePrice: 200, rating: 92 },
+        { name: "KL Rahul", role: "Wicketkeeper", basePrice: 200, rating: 93 },
+        { name: "Yuzvendra Chahal", role: "Bowler", basePrice: 200, rating: 91 },
+        { name: "Arshdeep Singh", role: "Bowler", basePrice: 200, rating: 90 },
+        { name: "Mitchell Starc", role: "Bowler", basePrice: 200, rating: 94 },
+        { name: "Jos Buttler", role: "Wicketkeeper", basePrice: 200, rating: 94 },
+        { name: "Mohammed Shami", role: "Bowler", basePrice: 200, rating: 92 },
+        { name: "Mohammed Siraj", role: "Bowler", basePrice: 200, rating: 89 },
+        { name: "Liam Livingstone", role: "All-Rounder", basePrice: 200, rating: 88 },
+        { name: "David Miller", role: "Batter", basePrice: 150, rating: 89 },
+        { name: "Kagiso Rabada", role: "Bowler", basePrice: 200, rating: 91 },
+        { name: "Ravichandran Ashwin", role: "All-Rounder", basePrice: 200, rating: 88 },
+        { name: "Marcus Stoinis", role: "All-Rounder", basePrice: 150, rating: 87 },
+        { name: "Glenn Maxwell", role: "All-Rounder", basePrice: 200, rating: 90 },
+        { name: "Venkatesh Iyer", role: "All-Rounder", basePrice: 150, rating: 86 },
+        { name: "Quinton de Kock", role: "Wicketkeeper", basePrice: 150, rating: 90 },
+        { name: "Phil Salt", role: "Wicketkeeper", basePrice: 150, rating: 89 },
+        { name: "Josh Hazlewood", role: "Bowler", basePrice: 200, rating: 91 },
+        { name: "Bhuvneshwar Kumar", role: "Bowler", basePrice: 150, rating: 87 }
     ];
+
     const roles = ["Batter", "Bowler", "All-Rounder", "Wicketkeeper"];
     const basePrices = [30, 50, 75, 125, 150, 200];
     let pool = [];
 
-    for (let i = 0; i < starNames.length; i++) {
+    // Add correctly categorized marquee players
+    for (let i = 0; i < marqueePlayers.length; i++) {
         pool.push({
             id: i + 1,
-            name: starNames[i],
-            role: roles[i % 4],
-            basePrice: 200,
-            rating: Math.floor(Math.random() * 10) + 88,
+            name: marqueePlayers[i].name,
+            role: marqueePlayers[i].role,
+            basePrice: marqueePlayers[i].basePrice,
+            rating: marqueePlayers[i].rating,
             isUncapped: false
         });
     }
 
-    for (let i = starNames.length + 1; i <= 577; i++) {
+    // Generate remaining pool up to 577 players
+    for (let i = marqueePlayers.length + 1; i <= 577; i++) {
         const assignedRole = roles[Math.floor(Math.random() * roles.length)];
         const assignedPrice = basePrices[Math.floor(Math.random() * basePrices.length)];
         const isUncapped = Math.random() > 0.7;
         pool.push({
             id: i,
-            name: `Player #${i} (${assignedRole})`,
+            name: `Player #${i}`,
             role: assignedRole,
             basePrice: isUncapped ? 30 : assignedPrice,
             rating: Math.floor(Math.random() * 25) + 65,
@@ -78,8 +95,7 @@ function createRoom(roomCode, hostSocketId) {
             spent: 0, 
             squad: [], 
             claimedBy: null, 
-            claimedByName: null,
-            retentionsCount: { capped: 0, uncapped: 0 }
+            claimedByName: null
         };
     });
 
@@ -142,13 +158,13 @@ function handleAuctionEnd(roomCode) {
 
         io.to(roomCode).emit('logEvent', {
             type: 'SOLD',
-            text: `🔨 SOLD: ${player.name} to ${winningTeam} for ₹${winningBid}L`
+            text: `🔨 SOLD: ${player.name} (${player.role}) to ${winningTeam} for ₹${winningBid}L`
         });
     } else {
         room.auction.status = `UNSOLD!`;
         io.to(roomCode).emit('logEvent', {
             type: 'UNSOLD',
-            text: `❌ UNSOLD: ${player.name} goes unsold`
+            text: `❌ UNSOLD: ${player.name} (${player.role}) goes unsold`
         });
     }
 
@@ -244,51 +260,6 @@ io.on('connection', (socket) => {
         io.to(socket.roomCode).emit('updateTeams', room.teams);
     });
 
-    socket.on('retainPlayer', ({ isUncapped }) => {
-        const room = rooms[socket.roomCode];
-        if (!room) return;
-
-        const teamCode = socket.claimedTeam;
-        if (!teamCode) return socket.emit('errorMsg', "You must claim a franchise first!");
-
-        const team = room.teams[teamCode];
-        const totalRetained = team.retentionsCount.capped + team.retentionsCount.uncapped;
-
-        if (totalRetained >= 6) return socket.emit('errorMsg', "Max 6 Retentions allowed per team!");
-
-        let cost = 0;
-        if (isUncapped) {
-            if (team.retentionsCount.uncapped >= 2) return socket.emit('errorMsg', "Max 2 Uncapped Retentions allowed!");
-            cost = UNCAPPED_SLAB;
-        } else {
-            if (team.retentionsCount.capped >= 5) return socket.emit('errorMsg', "Max 5 Capped Retentions allowed!");
-            cost = CAPPED_SLABS[team.retentionsCount.capped];
-        }
-
-        if (team.purse < cost) return socket.emit('errorMsg', `Insufficient purse! Need ₹${cost}L for retention.`);
-
-        const retainedPlayer = {
-            id: 9000 + Math.floor(Math.random() * 900),
-            name: `${teamCode} Core Retained #${totalRetained + 1}`,
-            role: isUncapped ? "Uncapped Prospect" : "Capped Star",
-            basePrice: cost,
-            rating: isUncapped ? 78 : 92,
-            isUncapped: isUncapped
-        };
-
-        team.purse -= cost;
-        team.spent += cost;
-        team.squad.push(retainedPlayer);
-        if (isUncapped) team.retentionsCount.uncapped++;
-        else team.retentionsCount.capped++;
-
-        io.to(socket.roomCode).emit('updateTeams', room.teams);
-        io.to(socket.roomCode).emit('logEvent', {
-            type: 'RETENTION',
-            text: `🔒 RETENTION: ${teamCode} retained ${retainedPlayer.name} for ₹${cost}L`
-        });
-    });
-
     socket.on('placeBid', () => {
         const room = rooms[socket.roomCode];
         if (!room || !room.auction.active) return;
@@ -343,37 +314,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('adminFastForward', ({ count }) => {
-        const room = rooms[socket.roomCode];
-        if (!room || socket.id !== room.host) return;
-
-        for (let i = 0; i < count; i++) {
-            if (room.currentPlayerIndex >= room.playerQueue.length - 1) break;
-            const p = room.playerQueue[room.currentPlayerIndex];
-            const eligible = TEAM_CODES.filter(c => room.teams[c].squad.length < SQUAD_MAX && room.teams[c].purse >= p.basePrice);
-            
-            if (eligible.length > 0 && Math.random() > 0.3) {
-                const buyer = eligible[Math.floor(Math.random() * eligible.length)];
-                room.teams[buyer].purse -= p.basePrice;
-                room.teams[buyer].spent += p.basePrice;
-                room.teams[buyer].squad.push(p);
-            }
-            room.currentPlayerIndex++;
-        }
-
-        const currentP = room.playerQueue[room.currentPlayerIndex];
-        room.auction = {
-            player: currentP,
-            highestBid: currentP.basePrice,
-            highestBidder: "No Bids",
-            timer: 8,
-            active: true,
-            status: "LIVE"
-        };
-        io.to(socket.roomCode).emit('nextPlayer', { auction: room.auction, teams: room.teams, currentIndex: room.currentPlayerIndex + 1 });
-        startRoomTimer(socket.roomCode);
-    });
-
     socket.on('disconnect', () => {
         const room = rooms[socket.roomCode];
         if (room) {
@@ -388,6 +328,5 @@ io.on('connection', (socket) => {
     });
 });
 
-// CRITICAL RENDER FIX: Must use dynamic port process.env.PORT
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
