@@ -5,7 +5,7 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 
-// CORS enabled for cross-origin communication (Netlify frontend -> Render backend)
+// Enable CORS for frontend deployment (Netlify/Vercel -> Render backend)
 const io = new Server(server, {
     cors: {
         origin: "*",
@@ -119,6 +119,32 @@ function createRoom(roomCode, hostSocketId) {
     };
 }
 
+function evaluateAuctionWinner(teams) {
+    let leaderboard = [];
+
+    for (let code in teams) {
+        const team = teams[code];
+        const totalRating = team.squad.reduce((sum, p) => sum + p.rating, 0);
+        const squadCount = team.squad.length;
+        
+        // Winner Score Formula: Total Squad Rating + (Remaining Purse / ₹100L)
+        let totalScore = totalRating + Math.floor(team.purse / 100);
+
+        leaderboard.push({
+            teamCode: code,
+            manager: team.claimedByName || "AI / Unclaimed",
+            squadCount: squadCount,
+            totalRating: totalRating,
+            purseLeft: team.purse,
+            finalScore: totalScore
+        });
+    }
+
+    // Sort teams descending by final score
+    leaderboard.sort((a, b) => b.finalScore - a.finalScore);
+    return leaderboard;
+}
+
 function startRoomTimer(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
@@ -194,7 +220,15 @@ function handleAuctionEnd(roomCode) {
             startRoomTimer(roomCode);
         } else {
             room.auction.status = "MEGA AUCTION COMPLETED!";
-            io.to(roomCode).emit('auctionFinished', { teams: room.teams });
+            const leaderboard = evaluateAuctionWinner(room.teams);
+            const winner = leaderboard[0];
+
+            io.to(roomCode).emit('auctionFinished', { 
+                status: `🏆 AUCTION OVER! WINNER: ${winner.teamCode} (${winner.manager}) with Score ${winner.finalScore}!`,
+                winner: winner,
+                leaderboard: leaderboard,
+                teams: room.teams 
+            });
         }
     }, 2500);
 }
@@ -241,11 +275,14 @@ io.on('connection', (socket) => {
         const room = rooms[socket.roomCode];
         if (!room) return;
 
-        for (let code in room.teams) {
-            if (room.teams[code].claimedBy === socket.id) {
-                room.teams[code].claimedBy = null;
-                room.teams[code].claimedByName = null;
-            }
+        // RULE 1: Block team changes if user already claimed a franchise
+        if (socket.claimedTeam) {
+            return socket.emit('errorMsg', `You are already manager of ${socket.claimedTeam}! You cannot switch teams mid-game.`);
+        }
+
+        // RULE 2: Block team selection if bidding has progressed past player 1
+        if (room.currentPlayerIndex > 0 || room.auction.highestBidder !== "No Bids") {
+            return socket.emit('errorMsg', "Team selection is locked once active bidding begins!");
         }
 
         if (!room.teams[teamCode].claimedBy) {
