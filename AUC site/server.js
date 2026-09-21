@@ -14,12 +14,15 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-// Official IPL Parameters
-const INITIAL_PURSE = 10000; // ₹100 Cr in Lakhs
-const SQUAD_MAX = 25;
-const PLAYING_11_MIN = 11;   // Minimum threshold to avoid DQ
-const MAX_OVERSEAS_SQUAD = 8;
-const MAX_OVERSEAS_XI = 4;
+// Heartbeat endpoint for Render keep-alive
+app.get('/ping', (req, res) => res.status(200).send('pong'));
+
+// Tournament Config
+const INITIAL_PURSE = 10000; // ₹100 Cr (in Lakhs)
+const SQUAD_MAX = 25; //
+const SQUAD_MIN = 11; // Mandatory minimum to form Playing XI
+const MAX_OVERSEAS_SQUAD = 8; //
+const MAX_OVERSEAS_XI = 4; // Max foreign players in playing XI
 const LOWEST_BASE_PRICE = 20; // ₹20 Lakhs floor
 const TEAM_CODES = ["CSK", "MI", "RCB", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"];
 
@@ -31,239 +34,142 @@ function getNextBidIncrement(currentBid) {
     return 50;
 }
 
-// Generates 264 Total Players categorized strictly by sets
-function generateStructuredPlayerPool() {
+function generatePlayerPool() {
     let pool = [];
     let idCounter = 1;
 
-    // SET 1: MARQUEE TIER (24 Players) - Base: ₹200L
-    const marqueeSet = [
-        // Batters
-        { name: "Virat Kohli", role: "Batsman", country: "IND", isOverseas: false, rating: 98 },
-        { name: "Rohit Sharma", role: "Batsman", country: "IND", isOverseas: false, rating: 95 },
-        { name: "Suryakumar Yadav", role: "Batsman", country: "IND", isOverseas: false, rating: 96 },
-        { name: "Shubman Gill", role: "Batsman", country: "IND", isOverseas: false, rating: 94 },
-        { name: "Travis Head", role: "Batsman", country: "AUS", isOverseas: true, rating: 94 },
-        { name: "Shreyas Iyer", role: "Batsman", country: "IND", isOverseas: false, rating: 93 },
-
-        // Wicket-keepers
-        { name: "Rishabh Pant", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 96 },
-        { name: "Jos Buttler", role: "Wicket-keeper", country: "ENG", isOverseas: true, rating: 95 },
-        { name: "Heinrich Klaasen", role: "Wicket-keeper", country: "SA", isOverseas: true, rating: 95 },
-        { name: "KL Rahul", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 94 },
-        { name: "Nicholas Pooran", role: "Wicket-keeper", country: "WI", isOverseas: true, rating: 93 },
-        { name: "Sanju Samson", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 92 },
-
-        // All-rounders
-        { name: "Hardik Pandya", role: "All-rounder", country: "IND", isOverseas: false, rating: 95 },
-        { name: "Ravindra Jadeja", role: "All-rounder", country: "IND", isOverseas: false, rating: 95 },
-        { name: "Glenn Maxwell", role: "All-rounder", country: "AUS", isOverseas: true, rating: 92 },
-        { name: "Andre Russell", role: "All-rounder", country: "WI", isOverseas: true, rating: 94 },
-        { name: "Axar Patel", role: "All-rounder", country: "IND", isOverseas: false, rating: 91 },
-        { name: "Liam Livingstone", role: "All-rounder", country: "ENG", isOverseas: true, rating: 90 },
-
-        // Bowlers
-        { name: "Jasprit Bumrah", role: "Bowler", country: "IND", isOverseas: false, rating: 99 },
-        { name: "Rashid Khan", role: "Bowler", country: "AFG", isOverseas: true, rating: 97 },
-        { name: "Mitchell Starc", role: "Bowler", country: "AUS", isOverseas: true, rating: 94 },
-        { name: "Mohammed Shami", role: "Bowler", country: "IND", isOverseas: false, rating: 93 },
-        { name: "Yuzvendra Chahal", role: "Bowler", country: "IND", isOverseas: false, rating: 92 },
-        { name: "Arshdeep Singh", role: "Bowler", country: "IND", isOverseas: false, rating: 91 }
+    // SET 1: 24 MARQUEE PLAYERS (Base: ₹200L)
+    const marquee = [
+        { name: "Virat Kohli", role: "Batsman", country: "IND", isOverseas: false, bat: 99, bowl: 30, fld: 95 },
+        { name: "Rohit Sharma", role: "Batsman", country: "IND", isOverseas: false, bat: 96, bowl: 25, fld: 88 },
+        { name: "Jasprit Bumrah", role: "Bowler", country: "IND", isOverseas: false, bat: 20, bowl: 99, fld: 89 },
+        { name: "Suryakumar Yadav", role: "Batsman", country: "IND", isOverseas: false, bat: 97, bowl: 20, fld: 92 },
+        { name: "Hardik Pandya", role: "All-rounder", country: "IND", isOverseas: false, bat: 90, bowl: 89, fld: 92 },
+        { name: "Ravindra Jadeja", role: "All-rounder", country: "IND", isOverseas: false, bat: 88, bowl: 92, fld: 99 },
+        { name: "Rashid Khan", role: "Bowler", country: "AFG", isOverseas: true, bat: 75, bowl: 98, fld: 90 },
+        { name: "Heinrich Klaasen", role: "Wicket-keeper", country: "SA", isOverseas: true, bat: 95, bowl: 10, fld: 90 },
+        { name: "Travis Head", role: "Batsman", country: "AUS", isOverseas: true, bat: 95, bowl: 55, fld: 88 },
+        { name: "Rishabh Pant", role: "Wicket-keeper", country: "IND", isOverseas: false, bat: 94, bowl: 10, fld: 92 },
+        { name: "Jos Buttler", role: "Wicket-keeper", country: "ENG", isOverseas: true, bat: 95, bowl: 10, fld: 90 },
+        { name: "Mitchell Starc", role: "Bowler", country: "AUS", isOverseas: true, bat: 50, bowl: 94, fld: 85 },
+        { name: "Shubman Gill", role: "Batsman", country: "IND", isOverseas: false, bat: 93, bowl: 15, fld: 88 },
+        { name: "Nicholas Pooran", role: "Wicket-keeper", country: "WI", isOverseas: true, bat: 94, bowl: 10, fld: 89 },
+        { name: "Andre Russell", role: "All-rounder", country: "WI", isOverseas: true, bat: 93, bowl: 88, fld: 86 },
+        { name: "Glenn Maxwell", role: "All-rounder", country: "AUS", isOverseas: true, bat: 91, bowl: 80, fld: 94 },
+        { name: "Axar Patel", role: "All-rounder", country: "IND", isOverseas: false, bat: 85, bowl: 90, fld: 89 },
+        { name: "Mohammed Shami", role: "Bowler", country: "IND", isOverseas: false, bat: 25, bowl: 93, fld: 82 },
+        { name: "Yuzvendra Chahal", role: "Bowler", country: "IND", isOverseas: false, bat: 15, bowl: 92, fld: 80 },
+        { name: "Arshdeep Singh", role: "Bowler", country: "IND", isOverseas: false, bat: 20, bowl: 91, fld: 85 },
+        { name: "KL Rahul", role: "Wicket-keeper", country: "IND", isOverseas: false, bat: 93, bowl: 10, fld: 90 },
+        { name: "Sanju Samson", role: "Wicket-keeper", country: "IND", isOverseas: false, bat: 92, bowl: 10, fld: 88 },
+        { name: "Shreyas Iyer", role: "Batsman", country: "IND", isOverseas: false, bat: 92, bowl: 20, fld: 87 },
+        { name: "Liam Livingstone", role: "All-rounder", country: "ENG", isOverseas: true, bat: 89, bowl: 80, fld: 88 }
     ];
 
-    marqueeSet.forEach(p => {
-        pool.push({
-            id: idCounter++,
-            name: p.name,
-            role: p.role,
-            category: "Marquee",
-            country: p.country,
-            isOverseas: p.isOverseas,
-            basePrice: 200,
-            rating: p.rating
-        });
+    marquee.forEach(p => {
+        const rating = Math.round((p.bat * 0.45) + (p.bowl * 0.45) + (p.fld * 0.1));
+        pool.push({ id: idCounter++, ...p, category: "Marquee", basePrice: 200, rating });
     });
 
     const foreignNations = ["AUS", "ENG", "SA", "WI", "NZ", "AFG"];
-    const cappedPrices = [50, 75, 100, 150];
+    const cappedPrices = [50, 75, 100, 150]; //
 
-    // SET 2: CAPPED BATTERS (35 Players)
+    // SET 2: Capped Batters (35)
     for (let i = 1; i <= 35; i++) {
         const isOverseas = i % 3 === 0;
+        const bat = Math.floor(Math.random() * 14) + 80;
         pool.push({
             id: idCounter++,
             name: isOverseas ? `Intl Batter #${i}` : `Indian Batter #${i}`,
-            role: "Batsman",
-            category: "Capped Batter",
+            role: "Batsman", category: "Capped Batter",
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
-            isOverseas: isOverseas,
-            basePrice: cappedPrices[i % cappedPrices.length],
-            rating: Math.floor(Math.random() * 10) + 82
+            isOverseas, basePrice: cappedPrices[i % cappedPrices.length],
+            bat, bowl: 25, fld: 80, rating: bat
         });
     }
 
-    // SET 3: CAPPED WICKET-KEEPERS (25 Players)
+    // SET 3: Capped Keepers (25)
     for (let i = 1; i <= 25; i++) {
         const isOverseas = i % 3 === 0;
+        const bat = Math.floor(Math.random() * 12) + 78;
         pool.push({
             id: idCounter++,
             name: isOverseas ? `Intl Keeper #${i}` : `Indian Keeper #${i}`,
-            role: "Wicket-keeper",
-            category: "Capped Wicket-keeper",
+            role: "Wicket-keeper", category: "Capped Wicket-keeper",
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
-            isOverseas: isOverseas,
-            basePrice: cappedPrices[i % cappedPrices.length],
-            rating: Math.floor(Math.random() * 10) + 82
+            isOverseas, basePrice: cappedPrices[i % cappedPrices.length],
+            bat, bowl: 10, fld: 88, rating: bat
         });
     }
 
-    // SET 4: CAPPED ALL-ROUNDERS (45 Players)
+    // SET 4: Capped All-rounders (45)
     for (let i = 1; i <= 45; i++) {
         const isOverseas = i % 2 === 0;
+        const bat = Math.floor(Math.random() * 15) + 75;
+        const bowl = Math.floor(Math.random() * 15) + 75;
         pool.push({
             id: idCounter++,
             name: isOverseas ? `Intl All-Rounder #${i}` : `Indian All-Rounder #${i}`,
-            role: "All-rounder",
-            category: "Capped All-rounder",
+            role: "All-rounder", category: "Capped All-rounder",
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
-            isOverseas: isOverseas,
-            basePrice: cappedPrices[i % cappedPrices.length],
-            rating: Math.floor(Math.random() * 12) + 80
+            isOverseas, basePrice: cappedPrices[i % cappedPrices.length],
+            bat, bowl, fld: 80, rating: Math.round((bat + bowl) / 2)
         });
     }
 
-    // SET 5: CAPPED BOWLERS (55 Players)
+    // SET 5: Capped Bowlers (55)
     for (let i = 1; i <= 55; i++) {
         const isOverseas = i % 3 === 0;
+        const bowl = Math.floor(Math.random() * 14) + 80;
         pool.push({
             id: idCounter++,
             name: isOverseas ? `Intl Bowler #${i}` : `Indian Bowler #${i}`,
-            role: "Bowler",
-            category: "Capped Bowler",
+            role: "Bowler", category: "Capped Bowler",
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
-            isOverseas: isOverseas,
-            basePrice: cappedPrices[i % cappedPrices.length],
-            rating: Math.floor(Math.random() * 12) + 81
+            isOverseas, basePrice: cappedPrices[i % cappedPrices.length],
+            bat: 25, bowl, fld: 75, rating: bowl
         });
     }
 
-    // SET 6: UNCAPPED TALENTS (80 Players) - Base: ₹20L
+    // SET 6: Uncapped Talents (80)
     const uncappedRoles = ["Batsman", "Wicket-keeper", "All-rounder", "Bowler"];
     for (let i = 1; i <= 80; i++) {
         const role = uncappedRoles[i % uncappedRoles.length];
         const isOverseas = i % 8 === 0;
+        const rating = Math.floor(Math.random() * 14) + 68;
         pool.push({
             id: idCounter++,
-            name: isOverseas ? `Emerging Overseas Talent #${i}` : `Domestic Talent #${i}`,
-            role: role,
-            category: `Uncapped ${role}`,
+            name: isOverseas ? `Emerging Overseas #${i}` : `Domestic Talent #${i}`,
+            role, category: `Uncapped ${role}`,
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
-            isOverseas: isOverseas,
-            basePrice: 20,
-            rating: Math.floor(Math.random() * 12) + 70
+            isOverseas, basePrice: 20, //
+            bat: rating, bowl: rating, fld: 70, rating
         });
     }
 
-    return pool; // 24 + 35 + 25 + 45 + 55 + 80 = 264 Players
+    return pool; // Total = 264 Players
 }
 
 function createRoom(roomCode, hostSocketId) {
-    const playerQueue = generateStructuredPlayerPool();
-
+    const playerQueue = generatePlayerPool();
     rooms[roomCode] = {
         code: roomCode,
         host: hostSocketId,
-        teams: {}, // Dynamically registered teams
-        playerQueue: playerQueue,
+        teams: {},
+        playerQueue,
         unsoldPool: [],
         currentPlayerIndex: 0,
         timerInterval: null,
-        isStarted: false,
+        phase: "LOBBY",
+        skippedBy: new Set(),
         auction: {
             player: playerQueue[0],
             highestBid: playerQueue[0].basePrice,
             highestBidder: "No Bids",
             timer: 12,
-            active: false,
-            status: "WAITING TO START"
+            active: false
         }
     };
-}
-
-// Automatic Disqualification & Best Playing 11 Evaluation
-function evaluateWinner(teams) {
-    let leaderboard = [];
-
-    for (let key in teams) {
-        const team = teams[key];
-        
-        // RULE: Disqualified if unable to buy at least 11 players
-        if (team.squad.length < PLAYING_11_MIN) {
-            leaderboard.push({
-                teamCode: team.displayName,
-                manager: team.claimedByName || "Unclaimed",
-                squadCount: team.squad.length,
-                overseasCount: team.overseasCount,
-                totalRating: 0,
-                purseLeft: team.purse,
-                finalScore: 0,
-                isDisqualified: true,
-                statusText: `DISQUALIFIED (< ${PLAYING_11_MIN} players)`
-            });
-            continue;
-        }
-
-        // Calculate Best Playing XI conforming to Max 4 Overseas
-        const sortedSquad = [...team.squad].sort((a, b) => b.rating - a.rating);
-        let playingXI = [];
-        let overseasInXI = 0;
-
-        for (let p of sortedSquad) {
-            if (playingXI.length === 11) break;
-            if (p.isOverseas) {
-                if (overseasInXI < MAX_OVERSEAS_XI) {
-                    playingXI.push(p);
-                    overseasInXI++;
-                }
-            } else {
-                playingXI.push(p);
-            }
-        }
-
-        // Fill remainder with domestic players if overseas limit blocked candidates
-        if (playingXI.length < 11) {
-            for (let p of sortedSquad) {
-                if (playingXI.length === 11) break;
-                if (!playingXI.includes(p) && !p.isOverseas) {
-                    playingXI.push(p);
-                }
-            }
-        }
-
-        const totalRating = playingXI.reduce((sum, p) => sum + p.rating, 0);
-        const score = totalRating + Math.floor(team.purse / 100);
-
-        leaderboard.push({
-            teamCode: team.displayName,
-            manager: team.claimedByName || "Unclaimed",
-            squadCount: team.squad.length,
-            overseasCount: team.overseasCount,
-            totalRating: totalRating,
-            purseLeft: team.purse,
-            finalScore: score,
-            isDisqualified: false,
-            statusText: "Qualified"
-        });
-    }
-
-    // Sort valid teams highest first, placing disqualified teams at the bottom
-    leaderboard.sort((a, b) => {
-        if (a.isDisqualified && !b.isDisqualified) return 1;
-        if (!a.isDisqualified && b.isDisqualified) return -1;
-        return b.finalScore - a.finalScore;
-    });
-
-    return leaderboard;
 }
 
 function startRoomTimer(roomCode) {
@@ -273,7 +179,7 @@ function startRoomTimer(roomCode) {
     clearInterval(room.timerInterval);
     room.auction.timer = 12;
     room.auction.active = true;
-    room.auction.status = "LIVE";
+    room.skippedBy.clear();
 
     room.timerInterval = setInterval(() => {
         if (room.auction.timer > 0) {
@@ -300,20 +206,18 @@ function handleAuctionEnd(roomCode) {
         const team = room.teams[winningTeamKey];
         team.purse -= winningBid;
         team.spent += winningBid;
-        team.squad.push(player);
-        if (player.isOverseas) {
-            team.overseasCount++;
-        }
-        room.auction.status = `SOLD to ${team.displayName} for ₹${winningBid}L!`;
+        team.squad.push({ ...player, boughtPrice: winningBid });
+        if (player.isOverseas) team.overseasCount++;
         isSold = true;
+        room.auction.status = `SOLD to ${team.displayName} for ₹${winningBid}L!`;
     } else {
-        room.auction.status = "UNSOLD";
         room.unsoldPool.push(player);
+        room.auction.status = `UNSOLD: ${player.name}`;
     }
 
-    io.to(roomCode).emit('auctionEnded', {
+    io.to(roomCode).emit('playerResolved', {
         status: room.auction.status,
-        isSold: isSold,
+        isSold,
         teams: room.teams
     });
 
@@ -326,8 +230,7 @@ function handleAuctionEnd(roomCode) {
                 highestBid: nextPlayer.basePrice,
                 highestBidder: "No Bids",
                 timer: 12,
-                active: true,
-                status: "LIVE"
+                active: true
             };
             io.to(roomCode).emit('nextPlayer', {
                 auction: room.auction,
@@ -337,90 +240,172 @@ function handleAuctionEnd(roomCode) {
             });
             startRoomTimer(roomCode);
         } else {
-            room.auction.status = "AUCTION COMPLETED";
-            const leaderboard = evaluateWinner(room.teams);
-            io.to(roomCode).emit('auctionFinished', {
-                winner: leaderboard[0],
-                leaderboard: leaderboard,
-                teams: room.teams
-            });
+            room.phase = "SELECTION";
+            io.to(roomCode).emit('startSelectionPhase', { teams: room.teams });
         }
     }, 2500);
 }
 
+// Multiplier Calculation: 2x Captain, 1.5x Vice-Captain
+function calculateFinalStandings(room) {
+    let leaderboard = [];
+
+    for (let key in room.teams) {
+        const team = room.teams[key];
+        
+        if (team.squad.length < SQUAD_MIN) {
+            leaderboard.push({
+                teamCode: team.displayName,
+                manager: team.claimedByName,
+                squadCount: team.squad.length,
+                isDisqualified: true,
+                finalScore: 0,
+                purseLeft: team.purse,
+                captainName: "None",
+                vcName: "None",
+                playingXIScore: 0,
+                squad: team.squad,
+                statusText: "DISQUALIFIED (< 11 Players)"
+            });
+            continue;
+        }
+
+        let xi = team.submittedXI;
+        if (!xi || xi.length !== 11) {
+            xi = [...team.squad].sort((a, b) => b.rating - a.rating).slice(0, 11);
+            team.captainId = xi[0].id;
+            team.viceCaptainId = xi[1].id;
+        }
+
+        let playingXIRating = 0;
+        let captainName = "None";
+        let vcName = "None";
+
+        xi.forEach(player => {
+            let pts = player.rating;
+            if (team.captainId === player.id) {
+                pts = pts * 2.0;
+                captainName = player.name;
+            } else if (team.viceCaptainId === player.id) {
+                pts = pts * 1.5;
+                vcName = player.name;
+            }
+            playingXIRating += pts;
+        });
+
+        const purseBonus = Math.floor(team.purse / 100);
+        const finalScore = Math.round(playingXIRating) + purseBonus;
+
+        leaderboard.push({
+            teamCode: team.displayName,
+            manager: team.claimedByName,
+            squadCount: team.squad.length,
+            isDisqualified: false,
+            finalScore,
+            purseLeft: team.purse,
+            captainName,
+            vcName,
+            playingXIScore: Math.round(playingXIRating),
+            squad: team.squad,
+            statusText: "Qualified"
+        });
+    }
+
+    leaderboard.sort((a, b) => {
+        if (a.isDisqualified && !b.isDisqualified) return 1;
+        if (!a.isDisqualified && b.isDisqualified) return -1;
+        return b.finalScore - a.finalScore;
+    });
+
+    return leaderboard;
+}
+
 io.on('connection', (socket) => {
-    socket.on('createRoom', ({ username }) => {
+    socket.on('rejoinSession', ({ roomCode, userId }) => {
+        const room = rooms[roomCode];
+        if (!room) return socket.emit('errorMsg', "Room session expired.");
+
+        socket.join(roomCode);
+        socket.roomCode = roomCode;
+        socket.userId = userId;
+
+        for (let key in room.teams) {
+            if (room.teams[key].userId === userId) {
+                room.teams[key].claimedBy = socket.id;
+                socket.claimedTeamKey = key;
+                break;
+            }
+        }
+
+        socket.emit('rejoinedSuccess', {
+            phase: room.phase,
+            auction: room.auction,
+            teams: room.teams,
+            myTeamKey: socket.claimedTeamKey,
+            currentIndex: room.currentPlayerIndex + 1,
+            totalPlayers: room.playerQueue.length
+        });
+    });
+
+    socket.on('createRoom', ({ username, userId }) => {
         const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
         createRoom(roomCode, socket.id);
         socket.join(roomCode);
         socket.roomCode = roomCode;
-        socket.username = username;
+        socket.userId = userId;
         socket.isHost = true;
 
-        socket.emit('roomCreated', {
-            roomCode,
-            teams: rooms[roomCode].teams,
-            claimedCount: 0
-        });
+        socket.emit('roomCreated', { roomCode, teams: rooms[roomCode].teams });
     });
 
-    socket.on('joinRoom', ({ roomCode, username }) => {
+    socket.on('joinRoom', ({ roomCode, username, userId }) => {
         const room = rooms[roomCode];
-        if (!room) return socket.emit('errorMsg', "Invalid 4-digit Room Code!");
+        if (!room) return socket.emit('errorMsg', "Invalid 4-Digit Room Code.");
 
         socket.join(roomCode);
         socket.roomCode = roomCode;
+        socket.userId = userId;
         socket.username = username;
-        socket.isHost = false;
 
         socket.emit('joinedToTeamSelect', {
             roomCode,
             teams: room.teams,
             teamCodes: TEAM_CODES
         });
-        io.to(roomCode).emit('updateTeams', {
-            teams: room.teams,
-            claimedCount: Object.keys(room.teams).length
-        });
     });
 
-    // Dynamic Team Claim with Table Duplication Support
     socket.on('claimTeam', ({ franchiseBase }) => {
         const room = rooms[socket.roomCode];
         if (!room) return;
 
-        if (socket.claimedTeamKey) {
-            return socket.emit('errorMsg', `You have already claimed ${room.teams[socket.claimedTeamKey].displayName}.`);
-        }
-
-        // Count how many copies of this franchise already exist in room
-        const existingCount = Object.values(room.teams).filter(t => t.baseCode === franchiseBase).length;
-        const assignedTableNumber = existingCount + 1;
-        const uniqueKey = `${franchiseBase}_T${assignedTableNumber}`;
-        const displayName = `${franchiseBase} (T${assignedTableNumber})`;
+        const count = Object.values(room.teams).filter(t => t.baseCode === franchiseBase).length;
+        const tableNumber = count + 1;
+        const uniqueKey = `${franchiseBase}_T${tableNumber}`;
+        const displayName = `${franchiseBase} (T${tableNumber})`;
 
         room.teams[uniqueKey] = {
             baseCode: franchiseBase,
-            tableNumber: assignedTableNumber,
-            displayName: displayName,
+            tableNumber,
+            displayName,
             purse: INITIAL_PURSE,
             spent: 0,
             squad: [],
             overseasCount: 0,
             claimedBy: socket.id,
-            claimedByName: socket.username
+            userId: socket.userId,
+            claimedByName: socket.username,
+            submittedXI: null,
+            captainId: null,
+            viceCaptainId: null
         };
 
         socket.claimedTeamKey = uniqueKey;
 
         socket.emit('teamConfirmed', {
             teamKey: uniqueKey,
-            displayName: displayName,
-            isStarted: room.isStarted,
-            auction: room.auction,
-            teams: room.teams,
-            currentIndex: room.currentPlayerIndex + 1,
-            totalPlayers: room.playerQueue.length
+            displayName,
+            phase: room.phase,
+            teams: room.teams
         });
 
         io.to(socket.roomCode).emit('updateTeams', {
@@ -433,10 +418,8 @@ io.on('connection', (socket) => {
         const room = rooms[socket.roomCode];
         if (!room || socket.id !== room.host) return;
 
-        if (room.isStarted) return;
-        room.isStarted = true;
+        room.phase = "AUCTION";
         room.auction.active = true;
-        room.auction.status = "LIVE";
 
         io.to(socket.roomCode).emit('auctionStartedNow', {
             auction: room.auction,
@@ -450,55 +433,95 @@ io.on('connection', (socket) => {
 
     socket.on('placeBid', () => {
         const room = rooms[socket.roomCode];
-        if (!room || !room.auction.active || !room.isStarted) return;
+        if (!room || !room.auction.active || room.phase !== "AUCTION") return;
 
         const teamKey = socket.claimedTeamKey;
-        if (!teamKey || !room.teams[teamKey]) {
-            return socket.emit('errorMsg', "You must claim a franchise before bidding!");
-        }
-
         const team = room.teams[teamKey];
-        const currentPlayer = room.auction.player;
+        if (!team) return socket.emit('errorMsg', "Claim a team before bidding.");
 
-        if (team.squad.length >= SQUAD_MAX) {
-            return socket.emit('errorMsg', `Squad is at maximum limit (${SQUAD_MAX} players).`);
+        const player = room.auction.player;
+        if (team.squad.length >= SQUAD_MAX) return socket.emit('errorMsg', "Squad is at 25 player capacity.");
+        if (player.isOverseas && team.overseasCount >= MAX_OVERSEAS_SQUAD) {
+            return socket.emit('errorMsg', "Overseas cap reached (8 max).");
         }
 
-        if (currentPlayer.isOverseas && team.overseasCount >= MAX_OVERSEAS_SQUAD) {
-            return socket.emit('errorMsg', `Overseas quota exceeded! Maximum ${MAX_OVERSEAS_SQUAD} foreign players permitted.`);
+        const nextBid = room.auction.highestBid + getNextBidIncrement(room.auction.highestBid);
+        if (nextBid > team.purse) return socket.emit('errorMsg', "Insufficient purse.");
+
+        const slotsNeeded = Math.max(0, SQUAD_MIN - (team.squad.length + 1));
+        if ((team.purse - nextBid) < (slotsNeeded * LOWEST_BASE_PRICE)) {
+            return socket.emit('errorMsg', "Bid blocked: Must reserve funds for minimum 11 players.");
         }
 
-        const currentBid = room.auction.highestBid;
-        const increment = getNextBidIncrement(currentBid);
-        const requiredBid = currentBid + increment;
-
-        if (requiredBid > team.purse) {
-            return socket.emit('errorMsg', `Insufficient purse! Required: ₹${requiredBid}L.`);
-        }
-
-        // Purse Reserve Calculation: Ensure team can complete the mandatory 11-player Playing XI
-        const slotsNeededForMin = Math.max(0, PLAYING_11_MIN - (team.squad.length + 1));
-        const minPurseReserve = slotsNeededForMin * LOWEST_BASE_PRICE;
-        if ((team.purse - requiredBid) < minPurseReserve) {
-            return socket.emit('errorMsg', `Bid blocked! You must reserve at least ₹${minPurseReserve}L to purchase a full Playing XI (11 players) and avoid disqualification.`);
-        }
-
-        room.auction.highestBid = requiredBid;
+        room.auction.highestBid = nextBid;
         room.auction.highestBidder = teamKey;
         room.auction.timer = Math.max(room.auction.timer, 5);
 
         io.to(socket.roomCode).emit('bidUpdated', {
-            highestBid: requiredBid,
+            highestBid: nextBid,
             highestBidder: team.displayName,
             timer: room.auction.timer
         });
+    });
+
+    socket.on('skipForMe', () => {
+        const room = rooms[socket.roomCode];
+        if (!room || !room.auction.active) return;
+
+        room.skippedBy.add(socket.claimedTeamKey);
+        const totalManagers = Object.keys(room.teams).length;
+
+        if (room.skippedBy.size >= totalManagers && room.auction.highestBidder === "No Bids") {
+            room.auction.timer = 1;
+        }
+    });
+
+    socket.on('submitPlaying11', ({ selectedPlayerIds, captainId, viceCaptainId }) => {
+        const room = rooms[socket.roomCode];
+        if (!room || !socket.claimedTeamKey) return;
+
+        const team = room.teams[socket.claimedTeamKey];
+        if (selectedPlayerIds.length !== 11) {
+            return socket.emit('errorMsg', "You must choose exactly 11 players.");
+        }
+        if (!captainId || !viceCaptainId || captainId === viceCaptainId) {
+            return socket.emit('errorMsg', "Captain and Vice-Captain must be two different players.");
+        }
+        if (!selectedPlayerIds.includes(captainId) || !selectedPlayerIds.includes(viceCaptainId)) {
+            return socket.emit('errorMsg', "Captain and Vice-Captain must both be part of your chosen 11 players.");
+        }
+
+        const selectedPlayers = team.squad.filter(p => selectedPlayerIds.includes(p.id));
+        const overseasCount = selectedPlayers.filter(p => p.isOverseas).length;
+
+        if (overseasCount > MAX_OVERSEAS_XI) {
+            return socket.emit('errorMsg', `Playing XI exceeds limit: Max ${MAX_OVERSEAS_XI} overseas players allowed in XI.`);
+        }
+
+        team.submittedXI = selectedPlayers;
+        team.captainId = captainId;
+        team.viceCaptainId = viceCaptainId;
+
+        socket.emit('submissionAccepted');
+
+        const qualified = Object.values(room.teams).filter(t => t.squad.length >= SQUAD_MIN);
+        const allSubmitted = qualified.every(t => t.submittedXI !== null);
+
+        if (allSubmitted) {
+            room.phase = "RESULT";
+            const leaderboard = calculateFinalStandings(room);
+            io.to(socket.roomCode).emit('finalResultsAnnounced', { 
+                leaderboard,
+                fullTeams: room.teams,
+                roomCode: socket.roomCode 
+            });
+        }
     });
 
     socket.on('adminForceSold', () => {
         const room = rooms[socket.roomCode];
         if (!room || socket.id !== room.host || !room.auction.active) return;
         clearInterval(room.timerInterval);
-        room.auction.active = false;
         handleAuctionEnd(socket.roomCode);
     });
 
@@ -506,20 +529,8 @@ io.on('connection', (socket) => {
         const room = rooms[socket.roomCode];
         if (!room || socket.id !== room.host || !room.auction.active) return;
         clearInterval(room.timerInterval);
-        room.auction.active = false;
         room.auction.highestBidder = "No Bids";
         handleAuctionEnd(socket.roomCode);
-    });
-
-    socket.on('disconnect', () => {
-        const room = rooms[socket.roomCode];
-        if (room && socket.claimedTeamKey && room.teams[socket.claimedTeamKey]) {
-            room.teams[socket.claimedTeamKey].claimedByName = `${room.teams[socket.claimedTeamKey].claimedByName} (Offline)`;
-            io.to(socket.roomCode).emit('updateTeams', {
-                teams: room.teams,
-                claimedCount: Object.keys(room.teams).length
-            });
-        }
     });
 });
 
