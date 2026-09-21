@@ -14,79 +14,84 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-// Framework Core Parameters
+// Official IPL Parameters
 const INITIAL_PURSE = 10000; // ₹100 Crore in Lakhs
 const SQUAD_MAX = 25;
 const SQUAD_MIN = 18;
-const LOWEST_BASE_PRICE = 20; // ₹20 Lakhs lowest tier
+const MAX_OVERSEAS = 8;       // Official IPL Limit: Max 8 Foreign Players per squad
+const LOWEST_BASE_PRICE = 20; // ₹20L minimum floor
 const TEAM_CODES = ["CSK", "MI", "RCB", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"];
 
 const rooms = {};
 
-// Bid Increment Slabs
 function getNextBidIncrement(currentBid) {
     if (currentBid < 100) return 5;       // Up to ₹1 Cr: +₹5L
     if (currentBid < 500) return 25;      // ₹1 Cr – ₹5 Cr: +₹25L
     return 50;                            // Above ₹5 Cr: +₹50L
 }
 
-// Player Pool: Marquee -> Capped -> Uncapped
 function generateStructuredPlayerPool() {
     let pool = [];
     let idCounter = 1;
 
-    // Set 1: Marquee Tier (Base ₹2 Cr)
+    // 1. Marquee Tier with explicit Overseas (Foreign) flags
     const marquee = [
-        { name: "Rishabh Pant", role: "Wicket-keeper", rating: 95 },
-        { name: "Shreyas Iyer", role: "Batsman", rating: 93 },
-        { name: "Mitchell Starc", role: "Bowler", rating: 94 },
-        { name: "Jos Buttler", role: "Wicket-keeper", rating: 94 },
-        { name: "Yuzvendra Chahal", role: "Bowler", rating: 91 },
-        { name: "Arshdeep Singh", role: "Bowler", rating: 90 },
-        { name: "KL Rahul", role: "Wicket-keeper", rating: 93 },
-        { name: "Mohammed Shami", role: "Bowler", rating: 92 },
-        { name: "Glenn Maxwell", role: "All-rounder", rating: 91 },
-        { name: "Liam Livingstone", role: "All-rounder", rating: 89 }
+        { name: "Rishabh Pant", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 95 },
+        { name: "Shreyas Iyer", role: "Batsman", country: "IND", isOverseas: false, rating: 93 },
+        { name: "Mitchell Starc", role: "Bowler", country: "AUS", isOverseas: true, rating: 94 },
+        { name: "Jos Buttler", role: "Wicket-keeper", country: "ENG", isOverseas: true, rating: 94 },
+        { name: "Yuzvendra Chahal", role: "Bowler", country: "IND", isOverseas: false, rating: 91 },
+        { name: "Arshdeep Singh", role: "Bowler", country: "IND", isOverseas: false, rating: 90 },
+        { name: "KL Rahul", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 93 },
+        { name: "Mohammed Shami", role: "Bowler", country: "IND", isOverseas: false, rating: 92 },
+        { name: "Glenn Maxwell", role: "All-rounder", country: "AUS", isOverseas: true, rating: 91 },
+        { name: "Liam Livingstone", role: "All-rounder", country: "ENG", isOverseas: true, rating: 89 }
     ];
+
     marquee.forEach(p => {
         pool.push({
             id: idCounter++,
             name: p.name,
             role: p.role,
             category: "Marquee",
+            country: p.country,
+            isOverseas: p.isOverseas,
             basePrice: 200,
             rating: p.rating
         });
     });
 
-    // Set 2: Capped Tier (Base ₹50L - ₹1.5 Cr)
+    // 2. Capped Tier
     const cappedRoles = ["Batsman", "Bowler", "All-rounder", "Wicket-keeper"];
     const cappedPrices = [50, 75, 100, 150];
-    for (let i = 1; i <= 100; i++) {
-        const role = cappedRoles[i % cappedRoles.length];
-        const basePrice = cappedPrices[i % cappedPrices.length];
+    const foreignNations = ["AUS", "ENG", "SA", "WI", "NZ", "AFG"];
+
+    for (let i = 1; i <= 60; i++) {
+        const isOverseas = Math.random() < 0.35; // ~35% overseas players
         pool.push({
             id: idCounter++,
-            name: `Capped Player #${i}`,
-            role: role,
+            name: isOverseas ? `International Star #${i}` : `Indian Capped #${i}`,
+            role: cappedRoles[i % cappedRoles.length],
             category: "Capped",
-            basePrice: basePrice,
-            rating: Math.floor(Math.random() * 15) + 78
+            country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
+            isOverseas: isOverseas,
+            basePrice: cappedPrices[i % cappedPrices.length],
+            rating: Math.floor(Math.random() * 14) + 80
         });
     }
 
-    // Set 3: Uncapped Tier (Base ₹20L - ₹30L)
-    const uncappedPrices = [20, 30];
-    for (let i = 1; i <= 120; i++) {
-        const role = cappedRoles[i % cappedRoles.length];
-        const basePrice = uncappedPrices[i % uncappedPrices.length];
+    // 3. Uncapped Tier
+    for (let i = 1; i <= 80; i++) {
+        const isOverseas = Math.random() < 0.15;
         pool.push({
             id: idCounter++,
-            name: `Uncapped Talent #${i}`,
-            role: role,
+            name: isOverseas ? `Overseas Talent #${i}` : `Domestic Talent #${i}`,
+            role: cappedRoles[i % cappedRoles.length],
             category: "Uncapped",
-            basePrice: basePrice,
-            rating: Math.floor(Math.random() * 18) + 65
+            country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
+            isOverseas: isOverseas,
+            basePrice: 20,
+            rating: Math.floor(Math.random() * 15) + 68
         });
     }
 
@@ -100,6 +105,7 @@ function createRoom(roomCode, hostSocketId) {
             purse: INITIAL_PURSE, 
             spent: 0, 
             squad: [], 
+            overseasCount: 0,
             claimedBy: null, 
             claimedByName: null
         };
@@ -126,7 +132,7 @@ function createRoom(roomCode, hostSocketId) {
     };
 }
 
-function evaluateAuctionWinner(teams) {
+function evaluateWinner(teams) {
     let leaderboard = [];
     for (let code in teams) {
         const team = teams[code];
@@ -136,6 +142,7 @@ function evaluateAuctionWinner(teams) {
             teamCode: code,
             manager: team.claimedByName || "Unclaimed",
             squadCount: team.squad.length,
+            overseasCount: team.overseasCount,
             totalRating: totalRating,
             purseLeft: team.purse,
             finalScore: score
@@ -176,22 +183,26 @@ function handleAuctionEnd(roomCode) {
     let isSold = false;
 
     if (winningTeam !== "No Bids" && room.teams[winningTeam]) {
-        room.teams[winningTeam].purse -= winningBid;
-        room.teams[winningTeam].spent += winningBid;
-        room.teams[winningTeam].squad.push(player);
+        const team = room.teams[winningTeam];
+        team.purse -= winningBid;
+        team.spent += winningBid;
+        team.squad.push(player);
+        if (player.isOverseas) {
+            team.overseasCount++;
+        }
         room.auction.status = `SOLD to ${winningTeam} for ₹${winningBid}L!`;
         isSold = true;
 
         io.to(roomCode).emit('logEvent', {
             type: 'SOLD',
-            text: `🔨 SOLD: ${player.name} (${player.role} - ${player.category}) to ${winningTeam} for ₹${winningBid}L`
+            text: `🔨 SOLD: ${player.name} (${player.country}) to ${winningTeam} for ₹${winningBid}L`
         });
     } else {
         room.auction.status = "UNSOLD";
         room.unsoldPool.push(player);
         io.to(roomCode).emit('logEvent', {
             type: 'UNSOLD',
-            text: `❌ UNSOLD: ${player.name} (${player.category}) enters re-auction pool`
+            text: `❌ UNSOLD: ${player.name} enters re-auction`
         });
     }
 
@@ -222,10 +233,9 @@ function handleAuctionEnd(roomCode) {
             startRoomTimer(roomCode);
         } else {
             room.auction.status = "MEGA AUCTION COMPLETED!";
-            const leaderboard = evaluateAuctionWinner(room.teams);
-            const winner = leaderboard[0];
+            const leaderboard = evaluateWinner(room.teams);
             io.to(roomCode).emit('auctionFinished', {
-                winner: winner,
+                winner: leaderboard[0],
                 leaderboard: leaderboard,
                 teams: room.teams
             });
@@ -254,7 +264,7 @@ io.on('connection', (socket) => {
 
     socket.on('joinRoom', ({ roomCode, username }) => {
         const room = rooms[roomCode];
-        if (!room) return socket.emit('errorMsg', "Room code not found!");
+        if (!room) return socket.emit('errorMsg', "Invalid 4-digit Room Code!");
 
         socket.join(roomCode);
         socket.roomCode = roomCode;
@@ -276,22 +286,19 @@ io.on('connection', (socket) => {
         if (!room) return;
 
         if (socket.claimedTeam) {
-            return socket.emit('errorMsg', `You already manage ${socket.claimedTeam}. Mid-game switching is forbidden.`);
+            return socket.emit('errorMsg', `You already manage ${socket.claimedTeam}. Team switching is disabled.`);
         }
 
-        if (room.currentPlayerIndex > 0 || room.auction.highestBidder !== "No Bids") {
-            return socket.emit('errorMsg', "Franchise selection is locked once live bidding starts.");
-        }
-
+        // Rule: First come, first served
         if (!room.teams[teamCode].claimedBy) {
             room.teams[teamCode].claimedBy = socket.id;
             room.teams[teamCode].claimedByName = socket.username;
             socket.claimedTeam = teamCode;
             socket.emit('teamAssigned', teamCode);
+            io.to(socket.roomCode).emit('updateTeams', room.teams);
         } else {
-            socket.emit('errorMsg', `${teamCode} is already claimed by ${room.teams[teamCode].claimedByName}!`);
+            socket.emit('errorMsg', `${teamCode} is already taken by ${room.teams[teamCode].claimedByName}!`);
         }
-        io.to(socket.roomCode).emit('updateTeams', room.teams);
     });
 
     socket.on('placeBid', () => {
@@ -299,35 +306,45 @@ io.on('connection', (socket) => {
         if (!room || !room.auction.active) return;
 
         const bidderName = socket.claimedTeam;
-        if (!bidderName) return socket.emit('errorMsg', "Claim a team before placing bids!");
+        if (!bidderName) return socket.emit('errorMsg', "You must claim a franchise before bidding!");
 
         const team = room.teams[bidderName];
-        if (team.squad.length >= SQUAD_MAX) return socket.emit('errorMsg', `Squad is at capacity (${SQUAD_MAX} players).`);
+        const currentPlayer = room.auction.player;
+
+        // Validation 1: Squad Full Check
+        if (team.squad.length >= SQUAD_MAX) {
+            return socket.emit('errorMsg', `Squad is at max limit (${SQUAD_MAX} players).`);
+        }
+
+        // Validation 2: Overseas Player Quota Check (Max 8)
+        if (currentPlayer.isOverseas && team.overseasCount >= MAX_OVERSEAS) {
+            return socket.emit('errorMsg', `Overseas quota exceeded! Maximum ${MAX_OVERSEAS} foreign players allowed.`);
+        }
 
         const currentBid = room.auction.highestBid;
         const increment = getNextBidIncrement(currentBid);
         const requiredBid = currentBid + increment;
 
+        // Validation 3: Direct purse check
         if (requiredBid > team.purse) {
             return socket.emit('errorMsg', `Insufficient purse! Need ₹${requiredBid}L.`);
         }
 
+        // Validation 4: Minimum squad reserve safety check
         const slotsNeededForMin = Math.max(0, SQUAD_MIN - (team.squad.length + 1));
         const minPurseReserveRequired = slotsNeededForMin * LOWEST_BASE_PRICE;
-        const purseRemainingAfterBid = team.purse - requiredBid;
-
-        if (purseRemainingAfterBid < minPurseReserveRequired) {
-            return socket.emit('errorMsg', `Bid rejected! You must keep ₹${minPurseReserveRequired}L in reserve to complete the minimum ${SQUAD_MIN} player squad.`);
+        if ((team.purse - requiredBid) < minPurseReserveRequired) {
+            return socket.emit('errorMsg', `Bid blocked! You must reserve ₹${minPurseReserveRequired}L to fill minimum ${SQUAD_MIN} players.`);
         }
 
         room.auction.highestBid = requiredBid;
         room.auction.highestBidder = bidderName;
-        room.auction.timer = Math.max(room.auction.timer, 5);
+        room.auction.timer = Math.max(room.auction.timer, 5); // Anti-sniping buffer
 
         io.to(socket.roomCode).emit('bidUpdated', room.auction);
         io.to(socket.roomCode).emit('logEvent', {
             type: 'BID',
-            text: `💰 BID: ${bidderName} raised to ₹${requiredBid}L (+₹${increment}L)`
+            text: `💰 BID: ${bidderName} placed ₹${requiredBid}L (+₹${increment}L)`
         });
     });
 
