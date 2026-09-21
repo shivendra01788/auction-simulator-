@@ -14,20 +14,19 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-// Official IPL Parameters
-const INITIAL_PURSE = 10000; // ₹100 Cr (in Lakhs)
+const INITIAL_PURSE = 10000;
 const SQUAD_MAX = 25;
 const SQUAD_MIN = 18;
-const MAX_OVERSEAS = 8;       // Max 8 Foreign Players per squad
-const LOWEST_BASE_PRICE = 20; // ₹20 Lakhs floor
+const MAX_OVERSEAS = 8;
+const LOWEST_BASE_PRICE = 20;
 const TEAM_CODES = ["CSK", "MI", "RCB", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"];
 
 const rooms = {};
 
 function getNextBidIncrement(currentBid) {
-    if (currentBid < 100) return 5;       // Up to ₹1 Cr: +₹5L
-    if (currentBid < 500) return 25;      // ₹1 Cr – ₹5 Cr: +₹25L
-    return 50;                            // Above ₹5 Cr: +₹50L
+    if (currentBid < 100) return 5;
+    if (currentBid < 500) return 25;
+    return 50;
 }
 
 function generateStructuredPlayerPool() {
