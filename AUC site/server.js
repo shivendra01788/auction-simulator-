@@ -16,27 +16,27 @@ app.use(express.static('public'));
 
 // Official IPL Parameters
 const INITIAL_PURSE = 10000; // ₹100 Crore in Lakhs
-const SQUAD_MAX = 25;
-const SQUAD_MIN = 18;
+const SQUAD_MAX = 25;[cite: 1]
+const SQUAD_MIN = 18;[cite: 1]
 const MAX_OVERSEAS = 8;       // Official IPL Limit: Max 8 Foreign Players per squad
-const LOWEST_BASE_PRICE = 20; // ₹20 Lakhs floor
+const LOWEST_BASE_PRICE = 20; // ₹20 Lakhs floor[cite: 1]
 const TEAM_CODES = ["CSK", "MI", "RCB", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"];
 
 const rooms = {};
 
 function getNextBidIncrement(currentBid) {
-    if (currentBid < 100) return 5;       // Up to ₹1 Cr: +₹5L
-    if (currentBid < 500) return 25;      // ₹1 Cr – ₹5 Cr: +₹25L
-    return 50;                            // Above ₹5 Cr: +₹50L
+    if (currentBid < 100) return 5;       // Up to ₹1 Cr: +₹5L[cite: 1]
+    if (currentBid < 500) return 25;      // ₹1 Cr – ₹5 Cr: +₹25L[cite: 1]
+    return 50;                            // Above ₹5 Cr: +₹50L[cite: 1]
 }
 
 function generateStructuredPlayerPool() {
     let pool = [];
     let idCounter = 1;
 
-    // SET 1: EXPANDED MARQUEE PLAYERS (24 Stars) - Base: ₹200L (₹2 Cr)
+    // SET 1: EXPANDED MARQUEE PLAYERS (24 Stars) - Base: ₹200L (₹2 Cr)[cite: 1]
     const marqueeSet = [
-        // Marquee Batters
+        // Marquee Batters[cite: 1]
         { name: "Virat Kohli", role: "Batsman", country: "IND", isOverseas: false, rating: 98 },
         { name: "Rohit Sharma", role: "Batsman", country: "IND", isOverseas: false, rating: 95 },
         { name: "Suryakumar Yadav", role: "Batsman", country: "IND", isOverseas: false, rating: 96 },
@@ -44,7 +44,7 @@ function generateStructuredPlayerPool() {
         { name: "Travis Head", role: "Batsman", country: "AUS", isOverseas: true, rating: 94 },
         { name: "Shreyas Iyer", role: "Batsman", country: "IND", isOverseas: false, rating: 93 },
 
-        // Marquee Wicket-keepers
+        // Marquee Wicket-keepers[cite: 1]
         { name: "Rishabh Pant", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 96 },
         { name: "Jos Buttler", role: "Wicket-keeper", country: "ENG", isOverseas: true, rating: 95 },
         { name: "Heinrich Klaasen", role: "Wicket-keeper", country: "SA", isOverseas: true, rating: 95 },
@@ -52,7 +52,7 @@ function generateStructuredPlayerPool() {
         { name: "Nicholas Pooran", role: "Wicket-keeper", country: "WI", isOverseas: true, rating: 93 },
         { name: "Sanju Samson", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 92 },
 
-        // Marquee All-rounders
+        // Marquee All-rounders[cite: 1]
         { name: "Hardik Pandya", role: "All-rounder", country: "IND", isOverseas: false, rating: 95 },
         { name: "Ravindra Jadeja", role: "All-rounder", country: "IND", isOverseas: false, rating: 95 },
         { name: "Glenn Maxwell", role: "All-rounder", country: "AUS", isOverseas: true, rating: 92 },
@@ -60,7 +60,7 @@ function generateStructuredPlayerPool() {
         { name: "Axar Patel", role: "All-rounder", country: "IND", isOverseas: false, rating: 91 },
         { name: "Liam Livingstone", role: "All-rounder", country: "ENG", isOverseas: true, rating: 90 },
 
-        // Marquee Bowlers
+        // Marquee Bowlers[cite: 1]
         { name: "Jasprit Bumrah", role: "Bowler", country: "IND", isOverseas: false, rating: 99 },
         { name: "Rashid Khan", role: "Bowler", country: "AFG", isOverseas: true, rating: 97 },
         { name: "Mitchell Starc", role: "Bowler", country: "AUS", isOverseas: true, rating: 94 },
@@ -77,15 +77,15 @@ function generateStructuredPlayerPool() {
             category: "Marquee",
             country: p.country,
             isOverseas: p.isOverseas,
-            basePrice: 200,
+            basePrice: 200,[cite: 1]
             rating: p.rating
         });
     });
 
     const foreignNations = ["AUS", "ENG", "SA", "WI", "NZ", "AFG"];
-    const cappedPrices = [50, 75, 100, 150];
+    const cappedPrices = [50, 75, 100, 150];[cite: 1]
 
-    // SET 2: CAPPED BATTERS (15 Players)
+    // SET 2: CAPPED BATTERS (15 Players)[cite: 1]
     for (let i = 1; i <= 15; i++) {
         const isOverseas = i % 3 === 0;
         pool.push({
@@ -95,12 +95,12 @@ function generateStructuredPlayerPool() {
             category: "Capped Batter",
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
             isOverseas: isOverseas,
-            basePrice: cappedPrices[i % cappedPrices.length],
+            basePrice: cappedPrices[i % cappedPrices.length],[cite: 1]
             rating: Math.floor(Math.random() * 10) + 82
         });
     }
 
-    // SET 3: CAPPED WICKET-KEEPERS (15 Players)
+    // SET 3: CAPPED WICKET-KEEPERS (15 Players)[cite: 1]
     for (let i = 1; i <= 15; i++) {
         const isOverseas = i % 3 === 0;
         pool.push({
@@ -110,12 +110,12 @@ function generateStructuredPlayerPool() {
             category: "Capped Wicket-keeper",
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
             isOverseas: isOverseas,
-            basePrice: cappedPrices[i % cappedPrices.length],
+            basePrice: cappedPrices[i % cappedPrices.length],[cite: 1]
             rating: Math.floor(Math.random() * 10) + 82
         });
     }
 
-    // SET 4: CAPPED ALL-ROUNDERS (25 Players)
+    // SET 4: CAPPED ALL-ROUNDERS (25 Players)[cite: 1]
     for (let i = 1; i <= 25; i++) {
         const isOverseas = i % 2 === 0;
         pool.push({
@@ -125,12 +125,12 @@ function generateStructuredPlayerPool() {
             category: "Capped All-rounder",
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
             isOverseas: isOverseas,
-            basePrice: cappedPrices[i % cappedPrices.length],
+            basePrice: cappedPrices[i % cappedPrices.length],[cite: 1]
             rating: Math.floor(Math.random() * 12) + 80
         });
     }
 
-    // SET 5: CAPPED BOWLERS (25 Players)
+    // SET 5: CAPPED BOWLERS (25 Players)[cite: 1]
     for (let i = 1; i <= 25; i++) {
         const isOverseas = i % 3 === 0;
         pool.push({
@@ -140,13 +140,13 @@ function generateStructuredPlayerPool() {
             category: "Capped Bowler",
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
             isOverseas: isOverseas,
-            basePrice: cappedPrices[i % cappedPrices.length],
+            basePrice: cappedPrices[i % cappedPrices.length],[cite: 1]
             rating: Math.floor(Math.random() * 12) + 81
         });
     }
 
-    // SET 6: UNCAPPED TALENTS (45 Players) - Base: ₹20L
-    const uncappedRoles = ["Batsman", "Wicket-keeper", "All-rounder", "Bowler"];
+    // SET 6: UNCAPPED TALENTS (45 Players) - Base: ₹20L[cite: 1]
+    const uncappedRoles = ["Batsman", "Wicket-keeper", "All-rounder", "Bowler"];[cite: 1]
     for (let i = 1; i <= 45; i++) {
         const role = uncappedRoles[i % uncappedRoles.length];
         const isOverseas = i % 8 === 0;
@@ -157,7 +157,7 @@ function generateStructuredPlayerPool() {
             category: `Uncapped ${role}`,
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
             isOverseas: isOverseas,
-            basePrice: 20,
+            basePrice: 20,[cite: 1]
             rating: Math.floor(Math.random() * 12) + 70
         });
     }
@@ -169,7 +169,7 @@ function createRoom(roomCode, hostSocketId) {
     let t = {};
     TEAM_CODES.forEach(code => {
         t[code] = { 
-            purse: INITIAL_PURSE, 
+            purse: INITIAL_PURSE,[cite: 1]
             spent: 0, 
             squad: [], 
             overseasCount: 0,
@@ -185,18 +185,23 @@ function createRoom(roomCode, hostSocketId) {
         host: hostSocketId,
         teams: t,
         playerQueue: playerQueue,
-        unsoldPool: [],
+        unsoldPool: [],[cite: 1]
         currentPlayerIndex: 0,
         timerInterval: null,
+        isStarted: false, // Auction waits for admin trigger[cite: 1]
         auction: {
             player: playerQueue[0],
             highestBid: playerQueue[0].basePrice,
             highestBidder: "No Bids",
             timer: 12,
-            active: true,
-            status: "LIVE"
+            active: false,
+            status: "WAITING TO START"
         }
     };
+}
+
+function getClaimedCount(teams) {
+    return Object.values(teams).filter(t => t.claimedBy !== null).length;
 }
 
 function evaluateWinner(teams) {
@@ -251,9 +256,9 @@ function handleAuctionEnd(roomCode) {
 
     if (winningTeam !== "No Bids" && room.teams[winningTeam]) {
         const team = room.teams[winningTeam];
-        team.purse -= winningBid;
+        team.purse -= winningBid;[cite: 1]
         team.spent += winningBid;
-        team.squad.push(player);
+        team.squad.push(player);[cite: 1]
         if (player.isOverseas) {
             team.overseasCount++;
         }
@@ -261,7 +266,7 @@ function handleAuctionEnd(roomCode) {
         isSold = true;
     } else {
         room.auction.status = "UNSOLD";
-        room.unsoldPool.push(player);
+        room.unsoldPool.push(player);[cite: 1]
     }
 
     io.to(roomCode).emit('auctionEnded', {
@@ -290,7 +295,7 @@ function handleAuctionEnd(roomCode) {
             });
             startRoomTimer(roomCode);
         } else {
-            room.auction.status = "AUCTION COMPLETED";
+            room.auction.status = "AUCTION COMPLETED";[cite: 1]
             const leaderboard = evaluateWinner(room.teams);
             io.to(roomCode).emit('auctionFinished', {
                 winner: leaderboard[0],
@@ -312,12 +317,9 @@ io.on('connection', (socket) => {
 
         socket.emit('roomCreated', {
             roomCode,
-            auction: rooms[roomCode].auction,
             teams: rooms[roomCode].teams,
-            currentIndex: 1,
-            totalPlayers: rooms[roomCode].playerQueue.length
+            claimedCount: 0
         });
-        startRoomTimer(roomCode);
     });
 
     socket.on('joinRoom', ({ roomCode, username }) => {
@@ -333,7 +335,10 @@ io.on('connection', (socket) => {
             roomCode,
             teams: room.teams
         });
-        io.to(roomCode).emit('updateTeams', room.teams);
+        io.to(roomCode).emit('updateTeams', {
+            teams: room.teams,
+            claimedCount: getClaimedCount(room.teams)
+        });
     });
 
     socket.on('claimTeam', ({ teamCode }) => {
@@ -354,27 +359,51 @@ io.on('connection', (socket) => {
 
         socket.emit('teamConfirmed', {
             teamCode: teamCode,
+            isStarted: room.isStarted,
             auction: room.auction,
             teams: room.teams,
             currentIndex: room.currentPlayerIndex + 1,
             totalPlayers: room.playerQueue.length
         });
 
-        io.to(socket.roomCode).emit('updateTeams', room.teams);
+        io.to(socket.roomCode).emit('updateTeams', {
+            teams: room.teams,
+            claimedCount: getClaimedCount(room.teams)
+        });
+    });
+
+    // Admin starts the auction manually[cite: 1]
+    socket.on('startAuctionByAdmin', () => {
+        const room = rooms[socket.roomCode];
+        if (!room || socket.id !== room.host) return;
+
+        if (room.isStarted) return;
+        room.isStarted = true;
+        room.auction.active = true;
+        room.auction.status = "LIVE";
+
+        io.to(socket.roomCode).emit('auctionStartedNow', {
+            auction: room.auction,
+            teams: room.teams,
+            currentIndex: 1,
+            totalPlayers: room.playerQueue.length
+        });
+
+        startRoomTimer(socket.roomCode);
     });
 
     socket.on('placeBid', () => {
         const room = rooms[socket.roomCode];
-        if (!room || !room.auction.active) return;
+        if (!room || !room.auction.active || !room.isStarted) return;
 
         const bidderName = socket.claimedTeam;
-        if (!bidderName) return socket.emit('errorMsg', "You must select a team before bidding!");
+        if (!bidderName) return socket.emit('errorMsg', "You must select a team before bidding!");[cite: 1]
 
         const team = room.teams[bidderName];
         const currentPlayer = room.auction.player;
 
-        if (team.squad.length >= SQUAD_MAX) {
-            return socket.emit('errorMsg', `Squad is at capacity (${SQUAD_MAX} players max).`);
+        if (team.squad.length >= SQUAD_MAX) {[cite: 1]
+            return socket.emit('errorMsg', `Squad is at capacity (${SQUAD_MAX} players max).`);[cite: 1]
         }
 
         if (currentPlayer.isOverseas && team.overseasCount >= MAX_OVERSEAS) {
@@ -385,14 +414,15 @@ io.on('connection', (socket) => {
         const increment = getNextBidIncrement(currentBid);
         const requiredBid = currentBid + increment;
 
-        if (requiredBid > team.purse) {
-            return socket.emit('errorMsg', `Insufficient purse! Need ₹${requiredBid}L.`);
+        if (requiredBid > team.purse) {[cite: 1]
+            return socket.emit('errorMsg', `Insufficient purse! Need ₹${requiredBid}L.`);[cite: 1]
         }
 
+        // Section 4.3 Minimum Squad Purse Protection[cite: 1]
         const slotsNeededForMin = Math.max(0, SQUAD_MIN - (team.squad.length + 1));
-        const minPurseReserve = slotsNeededForMin * LOWEST_BASE_PRICE;
-        if ((team.purse - requiredBid) < minPurseReserve) {
-            return socket.emit('errorMsg', `Bid blocked! You must reserve ₹${minPurseReserve}L to fill a minimum ${SQUAD_MIN} player squad.`);
+        const minPurseReserve = slotsNeededForMin * LOWEST_BASE_PRICE;[cite: 1]
+        if ((team.purse - requiredBid) < minPurseReserve) {[cite: 1]
+            return socket.emit('errorMsg', `Bid blocked! You must reserve ₹${minPurseReserve}L to fill a minimum ${SQUAD_MIN} player squad.`);[cite: 1]
         }
 
         room.auction.highestBid = requiredBid;
@@ -428,7 +458,10 @@ io.on('connection', (socket) => {
                     room.teams[code].claimedByName = null;
                 }
             }
-            io.to(socket.roomCode).emit('updateTeams', room.teams);
+            io.to(socket.roomCode).emit('updateTeams', {
+                teams: room.teams,
+                claimedCount: getClaimedCount(room.teams)
+            });
         }
     });
 });
