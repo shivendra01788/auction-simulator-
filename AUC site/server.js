@@ -14,15 +14,15 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-// Heartbeat endpoint for Render keep-alive
+// Heartbeat ping endpoint to prevent Render sleep
 app.get('/ping', (req, res) => res.status(200).send('pong'));
 
-// Tournament Config
+// Tournament Configuration
 const INITIAL_PURSE = 10000; // ₹100 Cr (in Lakhs)
-const SQUAD_MAX = 25; //
-const SQUAD_MIN = 11; // Mandatory minimum to form Playing XI
-const MAX_OVERSEAS_SQUAD = 8; //
-const MAX_OVERSEAS_XI = 4; // Max foreign players in playing XI
+const SQUAD_MAX = 25;
+const SQUAD_MIN = 11; // Mandatory Playing XI threshold
+const MAX_OVERSEAS_SQUAD = 8;
+const MAX_OVERSEAS_XI = 4; // Max foreign players permitted in Playing XI
 const LOWEST_BASE_PRICE = 20; // ₹20 Lakhs floor
 const TEAM_CODES = ["CSK", "MI", "RCB", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"];
 
@@ -72,7 +72,7 @@ function generatePlayerPool() {
     });
 
     const foreignNations = ["AUS", "ENG", "SA", "WI", "NZ", "AFG"];
-    const cappedPrices = [50, 75, 100, 150]; //
+    const cappedPrices = [50, 75, 100, 150];
 
     // SET 2: Capped Batters (35)
     for (let i = 1; i <= 35; i++) {
@@ -142,7 +142,7 @@ function generatePlayerPool() {
             name: isOverseas ? `Emerging Overseas #${i}` : `Domestic Talent #${i}`,
             role, category: `Uncapped ${role}`,
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
-            isOverseas, basePrice: 20, //
+            isOverseas, basePrice: 20,
             bat: rating, bowl: rating, fld: 70, rating
         });
     }
@@ -246,7 +246,6 @@ function handleAuctionEnd(roomCode) {
     }, 2500);
 }
 
-// Multiplier Calculation: 2x Captain, 1.5x Vice-Captain
 function calculateFinalStandings(room) {
     let leaderboard = [];
 
@@ -284,10 +283,10 @@ function calculateFinalStandings(room) {
         xi.forEach(player => {
             let pts = player.rating;
             if (team.captainId === player.id) {
-                pts = pts * 2.0;
+                pts = pts * 2.0; // 2x Multiplier
                 captainName = player.name;
             } else if (team.viceCaptainId === player.id) {
-                pts = pts * 1.5;
+                pts = pts * 1.5; // 1.5x Multiplier
                 vcName = player.name;
             }
             playingXIRating += pts;
@@ -355,7 +354,13 @@ io.on('connection', (socket) => {
         socket.userId = userId;
         socket.isHost = true;
 
-        socket.emit('roomCreated', { roomCode, teams: rooms[roomCode].teams });
+        socket.emit('roomCreated', { 
+            roomCode, 
+            teams: rooms[roomCode].teams,
+            auction: rooms[roomCode].auction,
+            currentIndex: 1,
+            totalPlayers: rooms[roomCode].playerQueue.length
+        });
     });
 
     socket.on('joinRoom', ({ roomCode, username, userId }) => {
@@ -401,11 +406,15 @@ io.on('connection', (socket) => {
 
         socket.claimedTeamKey = uniqueKey;
 
+        // Broadcast current active player data so screen renders immediately
         socket.emit('teamConfirmed', {
             teamKey: uniqueKey,
             displayName,
             phase: room.phase,
-            teams: room.teams
+            teams: room.teams,
+            auction: room.auction,
+            currentIndex: room.currentPlayerIndex + 1,
+            totalPlayers: room.playerQueue.length
         });
 
         io.to(socket.roomCode).emit('updateTeams', {
