@@ -6,7 +6,7 @@
     <title>IPL Mega Auction Live</title>
     <!-- Socket.io library -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <!-- SweetAlert2 -->
+    <!-- SweetAlert2 for Alerts & Winner Modal -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -38,7 +38,7 @@
         .action-row { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
         .bid-btn { background: #10b981; color: #fff; font-size: 1.3rem; padding: 14px 40px; flex: 1; max-width: 350px; }
         .bid-btn:hover { background: #059669; }
-        .admin-btn { background: #dc2626; color: #fff; font-size: 0.9rem; }
+        .admin-btn { background: #dc2626; color: #fff; font-size: 0.9rem; margin: 0 4px; padding: 8px 12px; }
 
         /* Team Selector Grid */
         .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 10px; }
@@ -100,7 +100,7 @@
                         <button class="bid-btn" onclick="placeBid()">RAISE BID 🔨</button>
                     </div>
 
-                    <!-- Admin Emergency Controls (Section 3) -->
+                    <!-- Auctioneer Overrides -->
                     <div id="admin-controls" class="hidden" style="margin-top: 15px; border-top: 1px solid #374151; padding-top: 10px;">
                         <span style="font-size: 0.8rem; color: #9ca3af;">Auctioneer Controls:</span>
                         <button class="admin-btn" onclick="adminSold()">Hammer (Sold)</button>
@@ -142,7 +142,7 @@
 </div>
 
 <script>
-    // Direct link to your live deployed Render backend
+    // Direct WebSocket connection to Render backend
     const socket = io('https://auction-simulator-3.onrender.com', {
         transports: ['websocket', 'polling'],
         secure: true
@@ -197,7 +197,6 @@
         socket.emit('adminForceUnsold');
     }
 
-    // Handlers
     socket.on('roomJoined', (data) => {
         isHost = data.isHost;
         document.getElementById('lobby').classList.add('hidden');
@@ -255,7 +254,6 @@
         });
     });
 
-    // Winner Evaluation Modal (Section 5)
     socket.on('auctionFinished', (data) => {
         const winner = data.winner;
         let rows = data.leaderboard.map((t, idx) => `
@@ -311,14 +309,12 @@
         for (let code in teams) {
             const team = teams[code];
 
-            // Buttons
             const btn = document.createElement('div');
             btn.className = `team-badge ${team.claimedBy ? 'claimed' : ''} ${code === myTeam ? 'my-team' : ''}`;
             btn.innerHTML = `<strong>${code}</strong><br><small style="font-size: 0.75rem;">${team.claimedByName || 'Open'}</small>`;
             btn.onclick = () => claimTeam(code);
             selector.appendChild(btn);
 
-            // Ticker Table
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td><strong>${code}</strong> (${team.claimedByName || 'Open'})</td>
