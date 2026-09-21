@@ -14,39 +14,62 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-const INITIAL_PURSE = 10000;
+// Official IPL Parameters
+const INITIAL_PURSE = 10000; // ₹100 Crore in Lakhs
 const SQUAD_MAX = 25;
 const SQUAD_MIN = 18;
-const MAX_OVERSEAS = 8;
-const LOWEST_BASE_PRICE = 20;
+const MAX_OVERSEAS = 8;       // Official IPL Limit: Max 8 Foreign Players per squad
+const LOWEST_BASE_PRICE = 20; // ₹20 Lakhs floor
 const TEAM_CODES = ["CSK", "MI", "RCB", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"];
 
 const rooms = {};
 
 function getNextBidIncrement(currentBid) {
-    if (currentBid < 100) return 5;
-    if (currentBid < 500) return 25;
-    return 50;
+    if (currentBid < 100) return 5;       // Up to ₹1 Cr: +₹5L
+    if (currentBid < 500) return 25;      // ₹1 Cr – ₹5 Cr: +₹25L
+    return 50;                            // Above ₹5 Cr: +₹50L
 }
 
 function generateStructuredPlayerPool() {
     let pool = [];
     let idCounter = 1;
 
-    const marquee = [
-        { name: "Rishabh Pant", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 95 },
+    // SET 1: EXPANDED MARQUEE PLAYERS (24 Stars) - Base: ₹200L (₹2 Cr)
+    const marqueeSet = [
+        // Marquee Batters
+        { name: "Virat Kohli", role: "Batsman", country: "IND", isOverseas: false, rating: 98 },
+        { name: "Rohit Sharma", role: "Batsman", country: "IND", isOverseas: false, rating: 95 },
+        { name: "Suryakumar Yadav", role: "Batsman", country: "IND", isOverseas: false, rating: 96 },
+        { name: "Shubman Gill", role: "Batsman", country: "IND", isOverseas: false, rating: 94 },
+        { name: "Travis Head", role: "Batsman", country: "AUS", isOverseas: true, rating: 94 },
         { name: "Shreyas Iyer", role: "Batsman", country: "IND", isOverseas: false, rating: 93 },
+
+        // Marquee Wicket-keepers
+        { name: "Rishabh Pant", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 96 },
+        { name: "Jos Buttler", role: "Wicket-keeper", country: "ENG", isOverseas: true, rating: 95 },
+        { name: "Heinrich Klaasen", role: "Wicket-keeper", country: "SA", isOverseas: true, rating: 95 },
+        { name: "KL Rahul", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 94 },
+        { name: "Nicholas Pooran", role: "Wicket-keeper", country: "WI", isOverseas: true, rating: 93 },
+        { name: "Sanju Samson", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 92 },
+
+        // Marquee All-rounders
+        { name: "Hardik Pandya", role: "All-rounder", country: "IND", isOverseas: false, rating: 95 },
+        { name: "Ravindra Jadeja", role: "All-rounder", country: "IND", isOverseas: false, rating: 95 },
+        { name: "Glenn Maxwell", role: "All-rounder", country: "AUS", isOverseas: true, rating: 92 },
+        { name: "Andre Russell", role: "All-rounder", country: "WI", isOverseas: true, rating: 94 },
+        { name: "Axar Patel", role: "All-rounder", country: "IND", isOverseas: false, rating: 91 },
+        { name: "Liam Livingstone", role: "All-rounder", country: "ENG", isOverseas: true, rating: 90 },
+
+        // Marquee Bowlers
+        { name: "Jasprit Bumrah", role: "Bowler", country: "IND", isOverseas: false, rating: 99 },
+        { name: "Rashid Khan", role: "Bowler", country: "AFG", isOverseas: true, rating: 97 },
         { name: "Mitchell Starc", role: "Bowler", country: "AUS", isOverseas: true, rating: 94 },
-        { name: "Jos Buttler", role: "Wicket-keeper", country: "ENG", isOverseas: true, rating: 94 },
-        { name: "Yuzvendra Chahal", role: "Bowler", country: "IND", isOverseas: false, rating: 91 },
-        { name: "Arshdeep Singh", role: "Bowler", country: "IND", isOverseas: false, rating: 90 },
-        { name: "KL Rahul", role: "Wicket-keeper", country: "IND", isOverseas: false, rating: 93 },
-        { name: "Mohammed Shami", role: "Bowler", country: "IND", isOverseas: false, rating: 92 },
-        { name: "Glenn Maxwell", role: "All-rounder", country: "AUS", isOverseas: true, rating: 91 },
-        { name: "Liam Livingstone", role: "All-rounder", country: "ENG", isOverseas: true, rating: 89 }
+        { name: "Mohammed Shami", role: "Bowler", country: "IND", isOverseas: false, rating: 93 },
+        { name: "Yuzvendra Chahal", role: "Bowler", country: "IND", isOverseas: false, rating: 92 },
+        { name: "Arshdeep Singh", role: "Bowler", country: "IND", isOverseas: false, rating: 91 }
     ];
 
-    marquee.forEach(p => {
+    marqueeSet.forEach(p => {
         pool.push({
             id: idCounter++,
             name: p.name,
@@ -59,35 +82,83 @@ function generateStructuredPlayerPool() {
         });
     });
 
-    const cappedRoles = ["Batsman", "Bowler", "All-rounder", "Wicket-keeper"];
-    const cappedPrices = [50, 75, 100, 150];
     const foreignNations = ["AUS", "ENG", "SA", "WI", "NZ", "AFG"];
+    const cappedPrices = [50, 75, 100, 150];
 
-    for (let i = 1; i <= 60; i++) {
-        const isOverseas = Math.random() < 0.35;
+    // SET 2: CAPPED BATTERS (15 Players)
+    for (let i = 1; i <= 15; i++) {
+        const isOverseas = i % 3 === 0;
         pool.push({
             id: idCounter++,
-            name: isOverseas ? `International Star #${i}` : `Indian Star #${i}`,
-            role: cappedRoles[i % cappedRoles.length],
-            category: "Capped",
+            name: isOverseas ? `Intl Batter #${i}` : `Indian Batter #${i}`,
+            role: "Batsman",
+            category: "Capped Batter",
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
             isOverseas: isOverseas,
             basePrice: cappedPrices[i % cappedPrices.length],
-            rating: Math.floor(Math.random() * 14) + 80
+            rating: Math.floor(Math.random() * 10) + 82
         });
     }
 
-    for (let i = 1; i <= 80; i++) {
-        const isOverseas = Math.random() < 0.15;
+    // SET 3: CAPPED WICKET-KEEPERS (15 Players)
+    for (let i = 1; i <= 15; i++) {
+        const isOverseas = i % 3 === 0;
         pool.push({
             id: idCounter++,
-            name: isOverseas ? `Overseas Talent #${i}` : `Domestic Talent #${i}`,
-            role: cappedRoles[i % cappedRoles.length],
-            category: "Uncapped",
+            name: isOverseas ? `Intl Keeper #${i}` : `Indian Keeper #${i}`,
+            role: "Wicket-keeper",
+            category: "Capped Wicket-keeper",
+            country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
+            isOverseas: isOverseas,
+            basePrice: cappedPrices[i % cappedPrices.length],
+            rating: Math.floor(Math.random() * 10) + 82
+        });
+    }
+
+    // SET 4: CAPPED ALL-ROUNDERS (25 Players)
+    for (let i = 1; i <= 25; i++) {
+        const isOverseas = i % 2 === 0;
+        pool.push({
+            id: idCounter++,
+            name: isOverseas ? `Intl All-Rounder #${i}` : `Indian All-Rounder #${i}`,
+            role: "All-rounder",
+            category: "Capped All-rounder",
+            country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
+            isOverseas: isOverseas,
+            basePrice: cappedPrices[i % cappedPrices.length],
+            rating: Math.floor(Math.random() * 12) + 80
+        });
+    }
+
+    // SET 5: CAPPED BOWLERS (25 Players)
+    for (let i = 1; i <= 25; i++) {
+        const isOverseas = i % 3 === 0;
+        pool.push({
+            id: idCounter++,
+            name: isOverseas ? `Intl Bowler #${i}` : `Indian Bowler #${i}`,
+            role: "Bowler",
+            category: "Capped Bowler",
+            country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
+            isOverseas: isOverseas,
+            basePrice: cappedPrices[i % cappedPrices.length],
+            rating: Math.floor(Math.random() * 12) + 81
+        });
+    }
+
+    // SET 6: UNCAPPED TALENTS (45 Players) - Base: ₹20L
+    const uncappedRoles = ["Batsman", "Wicket-keeper", "All-rounder", "Bowler"];
+    for (let i = 1; i <= 45; i++) {
+        const role = uncappedRoles[i % uncappedRoles.length];
+        const isOverseas = i % 8 === 0;
+        pool.push({
+            id: idCounter++,
+            name: isOverseas ? `Emerging Intl Talent #${i}` : `Domestic Talent #${i}`,
+            role: role,
+            category: `Uncapped ${role}`,
             country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
             isOverseas: isOverseas,
             basePrice: 20,
-            rating: Math.floor(Math.random() * 15) + 68
+            rating: Math.floor(Math.random() * 12) + 70
         });
     }
 
