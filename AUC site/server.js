@@ -5,7 +5,6 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 
-// Enable CORS for frontend deployment (Netlify/Vercel -> Render backend)
 const io = new Server(server, {
     cors: {
         origin: "*",
@@ -15,21 +14,21 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-const INITIAL_PURSE = 12000; // ₹120 Crore (in Lakhs)
-const SQUAD_MAX = 25;
-const TEAM_CODES = ["RCB", "CSK", "MI", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"];
+const INITIAL_PURSE = 12000; // ₹120 Crore (in Lakhs)[cite: 1]
+const SQUAD_MAX = 25;        //[cite: 1]
+const SQUAD_MIN = 15;        // Mandatory minimum squad floor to prevent under-bidding
+const LOWEST_BASE_PRICE = 30; // ₹30L minimum base price in the pool[cite: 1]
+const TEAM_CODES = ["RCB", "CSK", "MI", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"]; //[cite: 1]
 
 const rooms = {};
 
-// Dynamic bid increment logic
 function getNextBidIncrement(currentBid) {
-    if (currentBid < 100) return 5;       // Below ₹1 Cr: +₹5L
+    if (currentBid < 100) return 5;       // Below ₹1 Cr: +₹5L[cite: 1]
     if (currentBid < 200) return 10;      // ₹1 Cr – ₹2 Cr: +₹10L
-    if (currentBid < 500) return 25;      // ₹2 Cr – ₹5 Cr: +₹25L
-    return 50;                            // Above ₹5 Cr: +₹50L
+    if (currentBid < 500) return 25;      // ₹2 Cr – ₹5 Cr: +₹25L[cite: 1]
+    return 50;                            // Above ₹5 Cr: +₹50L[cite: 1]
 }
 
-// Fixed 577 Player Pool with Accurate Marquee Categories
 function generate577PlayerPool() {
     const marqueePlayers = [
         { name: "Rishabh Pant", role: "Wicketkeeper", basePrice: 200, rating: 95 },
@@ -58,7 +57,6 @@ function generate577PlayerPool() {
     const basePrices = [30, 50, 75, 125, 150, 200];
     let pool = [];
 
-    // Add correctly categorized marquee players
     for (let i = 0; i < marqueePlayers.length; i++) {
         pool.push({
             id: i + 1,
@@ -70,7 +68,6 @@ function generate577PlayerPool() {
         });
     }
 
-    // Generate remaining pool up to 577 players
     for (let i = marqueePlayers.length + 1; i <= 577; i++) {
         const assignedRole = roles[Math.floor(Math.random() * roles.length)];
         const assignedPrice = basePrices[Math.floor(Math.random() * basePrices.length)];
@@ -126,8 +123,6 @@ function evaluateAuctionWinner(teams) {
         const team = teams[code];
         const totalRating = team.squad.reduce((sum, p) => sum + p.rating, 0);
         const squadCount = team.squad.length;
-        
-        // Winner Score Formula: Total Squad Rating + (Remaining Purse / ₹100L)
         let totalScore = totalRating + Math.floor(team.purse / 100);
 
         leaderboard.push({
@@ -140,7 +135,6 @@ function evaluateAuctionWinner(teams) {
         });
     }
 
-    // Sort teams descending by final score
     leaderboard.sort((a, b) => b.finalScore - a.finalScore);
     return leaderboard;
 }
@@ -187,7 +181,7 @@ function handleAuctionEnd(roomCode) {
             text: `🔨 SOLD: ${player.name} (${player.role}) to ${winningTeam} for ₹${winningBid}L`
         });
     } else {
-        room.auction.status = `UNSOLD!`;
+        room.auction.status = `UNSOLD!`;[cite: 1]
         io.to(roomCode).emit('logEvent', {
             type: 'UNSOLD',
             text: `❌ UNSOLD: ${player.name} (${player.role}) goes unsold`
@@ -275,12 +269,10 @@ io.on('connection', (socket) => {
         const room = rooms[socket.roomCode];
         if (!room) return;
 
-        // RULE 1: Block team changes if user already claimed a franchise
         if (socket.claimedTeam) {
-            return socket.emit('errorMsg', `You are already manager of ${socket.claimedTeam}! You cannot switch teams mid-game.`);
+            return socket.emit('errorMsg', `You have already claimed ${socket.claimedTeam}! Team switching mid-game is disabled.`);
         }
 
-        // RULE 2: Block team selection if bidding has progressed past player 1
         if (room.currentPlayerIndex > 0 || room.auction.highestBidder !== "No Bids") {
             return socket.emit('errorMsg', "Team selection is locked once active bidding begins!");
         }
@@ -305,17 +297,36 @@ io.on('connection', (socket) => {
         if (!bidderName) return socket.emit('errorMsg', "You must claim a franchise before bidding!");
 
         const team = room.teams[bidderName];
-        if (team.squad.length >= SQUAD_MAX) return socket.emit('errorMsg', `Squad full (${SQUAD_MAX} players)!`);
+        if (team.squad.length >= SQUAD_MAX) return socket.emit('errorMsg', `Squad full (${SQUAD_MAX} players)![cite: 1]`);
 
         const currentBid = room.auction.highestBid;
         const increment = getNextBidIncrement(currentBid);
         const requiredBid = currentBid + increment;
 
-        if (requiredBid > team.purse) return socket.emit('errorMsg', `Insufficient purse! Need ₹${requiredBid}L.`);
+        // 1. Check direct purse affordability
+        if (requiredBid > team.purse) {
+            return socket.emit('errorMsg', `Insufficient purse! Need ₹${requiredBid}L.`);
+        }
+
+        // 2. CRITICAL FRAMEWORK RULE: Minimum Squad Purse Reservation Check[cite: 1]
+        // Formula: Remaining Purse after purchase must be enough to buy remaining min slots at base price (₹30L)
+        const slotsNeededToReachMin = Math.max(0, SQUAD_MIN - (team.squad.length + 1));
+        const reservedPurseNeeded = slotsNeededToReachMin * LOWEST_BASE_PRICE;
+        const purseAfterBid = team.purse - requiredBid;
+
+        if (purseAfterBid < reservedPurseNeeded) {
+            return socket.emit('errorMsg', `Bid blocked! You must reserve funds to fill a minimum squad of ${SQUAD_MIN} players.`);
+        }
 
         room.auction.highestBid = requiredBid;
         room.auction.highestBidder = bidderName;
-        room.auction.timer = 6;
+        
+        // Timer Soft Extension: If bid is placed with <= 3 seconds remaining, extend back to 5 seconds
+        if (room.auction.timer <= 3) {
+            room.auction.timer = 5;
+        } else {
+            room.auction.timer = Math.max(room.auction.timer, 5);
+        }
 
         io.to(socket.roomCode).emit('bidUpdated', room.auction);
         io.to(socket.roomCode).emit('logEvent', {
@@ -332,16 +343,20 @@ io.on('connection', (socket) => {
         const increment = getNextBidIncrement(currentBid);
         const requiredBid = currentBid + increment;
 
-        const availableTeams = TEAM_CODES.filter(code => 
-            room.teams[code].squad.length < SQUAD_MAX && 
-            room.teams[code].purse >= requiredBid
-        );
+        const availableTeams = TEAM_CODES.filter(code => {
+            const team = room.teams[code];
+            const slotsNeededToReachMin = Math.max(0, SQUAD_MIN - (team.squad.length + 1));
+            const reservedPurseNeeded = slotsNeededToReachMin * LOWEST_BASE_PRICE;
+            return team.squad.length < SQUAD_MAX && 
+                   team.purse >= requiredBid &&
+                   (team.purse - requiredBid >= reservedPurseNeeded);
+        });
 
         if (availableTeams.length > 0) {
             const randomTeam = availableTeams[Math.floor(Math.random() * availableTeams.length)];
             room.auction.highestBid = requiredBid;
             room.auction.highestBidder = randomTeam;
-            room.auction.timer = 5;
+            room.auction.timer = Math.max(room.auction.timer, 5);
 
             io.to(socket.roomCode).emit('bidUpdated', room.auction);
             io.to(socket.roomCode).emit('logEvent', {
@@ -366,4 +381,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
