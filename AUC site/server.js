@@ -16,8 +16,8 @@ app.use(express.static('public'));
 
 app.get('/ping', (req, res) => res.status(200).send('pong'));
 
-// Tournament Configuration
-const INITIAL_PURSE = 10000;
+// Tournament Config
+const INITIAL_PURSE = 10000; // ₹100 Cr (in Lakhs)
 const SQUAD_MAX = 25;
 const SQUAD_MIN = 11;
 const MAX_OVERSEAS_SQUAD = 8;
@@ -33,114 +33,324 @@ function getNextBidIncrement(currentBid) {
     return 50;
 }
 
+// Department Rating Formula: round((max(bat, bowl) + fld) / 2)
+function calculateDepartmentRating(bat, bowl, fld) {
+    const strongDept = Math.max(bat, bowl);
+    return Math.round((strongDept + fld) / 2);
+}
+
+// FULL 254-PLAYER AUTHENTIC MEGA AUCTION DATABASE
 function generatePlayerPool() {
     let pool = [];
     let idCounter = 1;
 
-    const marquee = [
-        { name: "Virat Kohli", role: "Batsman", country: "IND", isOverseas: false, bat: 99, bowl: 30, fld: 95 },
-        { name: "Rohit Sharma", role: "Batsman", country: "IND", isOverseas: false, bat: 96, bowl: 25, fld: 88 },
-        { name: "Jasprit Bumrah", role: "Bowler", country: "IND", isOverseas: false, bat: 20, bowl: 99, fld: 89 },
-        { name: "Suryakumar Yadav", role: "Batsman", country: "IND", isOverseas: false, bat: 97, bowl: 20, fld: 92 },
-        { name: "Hardik Pandya", role: "All-rounder", country: "IND", isOverseas: false, bat: 90, bowl: 89, fld: 92 },
-        { name: "Ravindra Jadeja", role: "All-rounder", country: "IND", isOverseas: false, bat: 88, bowl: 92, fld: 99 },
-        { name: "Rashid Khan", role: "Bowler", country: "AFG", isOverseas: true, bat: 75, bowl: 98, fld: 90 },
-        { name: "Heinrich Klaasen", role: "Wicket-keeper", country: "SA", isOverseas: true, bat: 95, bowl: 10, fld: 90 },
-        { name: "Travis Head", role: "Batsman", country: "AUS", isOverseas: true, bat: 95, bowl: 55, fld: 88 },
-        { name: "Rishabh Pant", role: "Wicket-keeper", country: "IND", isOverseas: false, bat: 94, bowl: 10, fld: 92 },
-        { name: "Jos Buttler", role: "Wicket-keeper", country: "ENG", isOverseas: true, bat: 95, bowl: 10, fld: 90 },
-        { name: "Mitchell Starc", role: "Bowler", country: "AUS", isOverseas: true, bat: 50, bowl: 94, fld: 85 },
-        { name: "Shubman Gill", role: "Batsman", country: "IND", isOverseas: false, bat: 93, bowl: 15, fld: 88 },
-        { name: "Nicholas Pooran", role: "Wicket-keeper", country: "WI", isOverseas: true, bat: 94, bowl: 10, fld: 89 },
-        { name: "Andre Russell", role: "All-rounder", country: "WI", isOverseas: true, bat: 93, bowl: 88, fld: 86 },
-        { name: "Glenn Maxwell", role: "All-rounder", country: "AUS", isOverseas: true, bat: 91, bowl: 80, fld: 94 },
-        { name: "Axar Patel", role: "All-rounder", country: "IND", isOverseas: false, bat: 85, bowl: 90, fld: 89 },
-        { name: "Mohammed Shami", role: "Bowler", country: "IND", isOverseas: false, bat: 25, bowl: 93, fld: 82 },
-        { name: "Yuzvendra Chahal", role: "Bowler", country: "IND", isOverseas: false, bat: 15, bowl: 92, fld: 80 },
-        { name: "Arshdeep Singh", role: "Bowler", country: "IND", isOverseas: false, bat: 20, bowl: 91, fld: 85 },
-        { name: "KL Rahul", role: "Wicket-keeper", country: "IND", isOverseas: false, bat: 93, bowl: 10, fld: 90 },
-        { name: "Sanju Samson", role: "Wicket-keeper", country: "IND", isOverseas: false, bat: 92, bowl: 10, fld: 88 },
-        { name: "Shreyas Iyer", role: "Batsman", country: "IND", isOverseas: false, bat: 92, bowl: 20, fld: 87 },
-        { name: "Liam Livingstone", role: "All-rounder", country: "ENG", isOverseas: true, bat: 89, bowl: 80, fld: 88 }
+    const rawRoster = [
+        // ==========================================
+        // 1. ALL-STAR SUPER MARQUEE (12 Legends)
+        // ==========================================
+        { name: "Virat Kohli", role: "Batsman", country: "IND", isOverseas: false, category: "Super Marquee (M1)", basePrice: 200, bat: 99, bowl: 30, fld: 95 },
+        { name: "Rohit Sharma", role: "Batsman", country: "IND", isOverseas: false, category: "Super Marquee (M1)", basePrice: 200, bat: 97, bowl: 25, fld: 89 },
+        { name: "MS Dhoni", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Super Marquee (M1)", basePrice: 200, bat: 92, bowl: 10, fld: 98 },
+        { name: "Jasprit Bumrah", role: "Bowler", country: "IND", isOverseas: false, category: "Super Marquee (M1)", basePrice: 200, bat: 25, bowl: 99, fld: 91 },
+        { name: "Hardik Pandya", role: "All-rounder", country: "IND", isOverseas: false, category: "Super Marquee (M1)", basePrice: 200, bat: 92, bowl: 90, fld: 94 },
+        { name: "Suryakumar Yadav", role: "Batsman", country: "IND", isOverseas: false, category: "Super Marquee (M1)", basePrice: 200, bat: 98, bowl: 20, fld: 94 },
+        { name: "Ravindra Jadeja", role: "All-rounder", country: "IND", isOverseas: false, category: "Super Marquee (M1)", basePrice: 200, bat: 89, bowl: 93, fld: 99 },
+        { name: "Rishabh Pant", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Super Marquee (M1)", basePrice: 200, bat: 96, bowl: 10, fld: 92 },
+        { name: "Jos Buttler", role: "Wicket-keeper", country: "ENG", isOverseas: true, category: "Super Marquee (M1)", basePrice: 200, bat: 96, bowl: 10, fld: 90 },
+        { name: "Mitchell Starc", role: "Bowler", country: "AUS", isOverseas: true, category: "Super Marquee (M1)", basePrice: 200, bat: 55, bowl: 95, fld: 87 },
+        { name: "Shreyas Iyer", role: "Batsman", country: "IND", isOverseas: false, category: "Super Marquee (M1)", basePrice: 200, bat: 94, bowl: 20, fld: 88 },
+        { name: "Heinrich Klaasen", role: "Wicket-keeper", country: "SA", isOverseas: true, category: "Super Marquee (M1)", basePrice: 200, bat: 96, bowl: 15, fld: 90 },
+
+        // ==========================================
+        // 2. MARQUEE TIER 2 & 3 (12 Players)
+        // ==========================================
+        { name: "Travis Head", role: "Batsman", country: "AUS", isOverseas: true, category: "Marquee M2", basePrice: 200, bat: 95, bowl: 55, fld: 89 },
+        { name: "Rashid Khan", role: "Bowler", country: "AFG", isOverseas: true, category: "Marquee M2", basePrice: 200, bat: 76, bowl: 98, fld: 92 },
+        { name: "Shubman Gill", role: "Batsman", country: "IND", isOverseas: false, category: "Marquee M2", basePrice: 200, bat: 94, bowl: 15, fld: 88 },
+        { name: "KL Rahul", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Marquee M2", basePrice: 200, bat: 94, bowl: 10, fld: 91 },
+        { name: "Arshdeep Singh", role: "Bowler", country: "IND", isOverseas: false, category: "Marquee M2", basePrice: 200, bat: 20, bowl: 93, fld: 87 },
+        { name: "Yuzvendra Chahal", role: "Bowler", country: "IND", isOverseas: false, category: "Marquee M2", basePrice: 200, bat: 15, bowl: 94, fld: 82 },
+        { name: "Kagiso Rabada", role: "Bowler", country: "SA", isOverseas: true, category: "Marquee M2", basePrice: 200, bat: 35, bowl: 94, fld: 88 },
+        { name: "Mohammed Shami", role: "Bowler", country: "IND", isOverseas: false, category: "Marquee M2", basePrice: 200, bat: 25, bowl: 94, fld: 84 },
+        { name: "Mohammed Siraj", role: "Bowler", country: "IND", isOverseas: false, category: "Marquee M2", basePrice: 200, bat: 20, bowl: 92, fld: 85 },
+        { name: "Liam Livingstone", role: "All-rounder", country: "ENG", isOverseas: true, category: "Marquee M2", basePrice: 200, bat: 90, bowl: 80, fld: 90 },
+        { name: "David Miller", role: "Batsman", country: "SA", isOverseas: true, category: "Marquee M2", basePrice: 150, bat: 91, bowl: 10, fld: 91 },
+        { name: "Andre Russell", role: "All-rounder", country: "WI", isOverseas: true, category: "Marquee M2", basePrice: 200, bat: 94, bowl: 88, fld: 88 },
+
+        // ==========================================
+        // 3. CAPPED BATTERS - SET 1 & 2 (20 Players)
+        // ==========================================
+        { name: "Yashasvi Jaiswal", role: "Batsman", country: "IND", isOverseas: false, category: "Capped Batter (BA1)", basePrice: 200, bat: 95, bowl: 20, fld: 89 },
+        { name: "Ruturaj Gaikwad", role: "Batsman", country: "IND", isOverseas: false, category: "Capped Batter (BA1)", basePrice: 200, bat: 93, bowl: 10, fld: 90 },
+        { name: "Rinku Singh", role: "Batsman", country: "IND", isOverseas: false, category: "Capped Batter (BA1)", basePrice: 150, bat: 92, bowl: 20, fld: 94 },
+        { name: "Harry Brook", role: "Batsman", country: "ENG", isOverseas: true, category: "Capped Batter (BA1)", basePrice: 200, bat: 90, bowl: 20, fld: 86 },
+        { name: "Devon Conway", role: "Batsman", country: "NZ", isOverseas: true, category: "Capped Batter (BA1)", basePrice: 200, bat: 91, bowl: 10, fld: 88 },
+        { name: "Jake Fraser-McGurk", role: "Batsman", country: "AUS", isOverseas: true, category: "Capped Batter (BA1)", basePrice: 200, bat: 92, bowl: 20, fld: 88 },
+        { name: "Aiden Markram", role: "Batsman", country: "SA", isOverseas: true, category: "Capped Batter (BA1)", basePrice: 200, bat: 89, bowl: 65, fld: 92 },
+        { name: "David Warner", role: "Batsman", country: "AUS", isOverseas: true, category: "Capped Batter (BA1)", basePrice: 200, bat: 91, bowl: 15, fld: 88 },
+        { name: "Devdutt Padikkal", role: "Batsman", country: "IND", isOverseas: false, category: "Capped Batter (BA1)", basePrice: 200, bat: 85, bowl: 10, fld: 85 },
+        { name: "Rahul Tripathi", role: "Batsman", country: "IND", isOverseas: false, category: "Capped Batter (BA1)", basePrice: 75, bat: 86, bowl: 10, fld: 88 },
+        { name: "Faf du Plessis", role: "Batsman", country: "SA", isOverseas: true, category: "Capped Batter (BA2)", basePrice: 200, bat: 91, bowl: 10, fld: 94 },
+        { name: "Glenn Phillips", role: "Batsman", country: "NZ", isOverseas: true, category: "Capped Batter (BA2)", basePrice: 200, bat: 88, bowl: 65, fld: 96 },
+        { name: "Rovman Powell", role: "Batsman", country: "WI", isOverseas: true, category: "Capped Batter (BA2)", basePrice: 150, bat: 87, bowl: 50, fld: 87 },
+        { name: "Ajinkya Rahane", role: "Batsman", country: "IND", isOverseas: false, category: "Capped Batter (BA2)", basePrice: 150, bat: 85, bowl: 10, fld: 89 },
+        { name: "Prithvi Shaw", role: "Batsman", country: "IND", isOverseas: false, category: "Capped Batter (BA2)", basePrice: 75, bat: 85, bowl: 10, fld: 81 },
+        { name: "Kane Williamson", role: "Batsman", country: "NZ", isOverseas: true, category: "Capped Batter (BA2)", basePrice: 200, bat: 89, bowl: 15, fld: 88 },
+        { name: "Mayank Agarwal", role: "Batsman", country: "IND", isOverseas: false, category: "Capped Batter (BA2)", basePrice: 100, bat: 84, bowl: 10, fld: 84 },
+        { name: "Steve Smith", role: "Batsman", country: "AUS", isOverseas: true, category: "Capped Batter (BA2)", basePrice: 200, bat: 90, bowl: 30, fld: 90 },
+        { name: "Rajat Patidar", role: "Batsman", country: "IND", isOverseas: false, category: "Capped Batter (BA2)", basePrice: 100, bat: 89, bowl: 10, fld: 86 },
+        { name: "Tilak Varma", role: "Batsman", country: "IND", isOverseas: false, category: "Capped Batter (BA2)", basePrice: 150, bat: 91, bowl: 40, fld: 88 },
+
+        // ==========================================
+        // 4. CAPPED WICKET-KEEPERS - SET 1 & 2 (14 Players)
+        // ==========================================
+        { name: "Phil Salt", role: "Wicket-keeper", country: "ENG", isOverseas: true, category: "Capped Keeper (WK1)", basePrice: 200, bat: 93, bowl: 10, fld: 90 },
+        { name: "Ishan Kishan", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Capped Keeper (WK1)", basePrice: 200, bat: 91, bowl: 10, fld: 89 },
+        { name: "Quinton de Kock", role: "Wicket-keeper", country: "SA", isOverseas: true, category: "Capped Keeper (WK1)", basePrice: 200, bat: 92, bowl: 10, fld: 91 },
+        { name: "Jonny Bairstow", role: "Wicket-keeper", country: "ENG", isOverseas: true, category: "Capped Keeper (WK1)", basePrice: 200, bat: 91, bowl: 10, fld: 88 },
+        { name: "Sanju Samson", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Capped Keeper (WK1)", basePrice: 200, bat: 92, bowl: 10, fld: 89 },
+        { name: "Nicholas Pooran", role: "Wicket-keeper", country: "WI", isOverseas: true, category: "Capped Keeper (WK1)", basePrice: 200, bat: 94, bowl: 10, fld: 90 },
+        { name: "Jitesh Sharma", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Capped Keeper (WK1)", basePrice: 100, bat: 87, bowl: 10, fld: 89 },
+        { name: "Rahmanullah Gurbaz", role: "Wicket-keeper", country: "AFG", isOverseas: true, category: "Capped Keeper (WK1)", basePrice: 200, bat: 87, bowl: 10, fld: 87 },
+        { name: "Dhruv Jurel", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Capped Keeper (WK2)", basePrice: 150, bat: 88, bowl: 10, fld: 90 },
+        { name: "Alex Carey", role: "Wicket-keeper", country: "AUS", isOverseas: true, category: "Capped Keeper (WK2)", basePrice: 100, bat: 85, bowl: 10, fld: 89 },
+        { name: "Shai Hope", role: "Wicket-keeper", country: "WI", isOverseas: true, category: "Capped Keeper (WK2)", basePrice: 125, bat: 86, bowl: 10, fld: 87 },
+        { name: "Ryan Rickelton", role: "Wicket-keeper", country: "SA", isOverseas: true, category: "Capped Keeper (WK2)", basePrice: 100, bat: 87, bowl: 10, fld: 87 },
+        { name: "KS Bharat", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Capped Keeper (WK2)", basePrice: 75, bat: 80, bowl: 10, fld: 88 },
+        { name: "Wriddhiman Saha", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Capped Keeper (WK2)", basePrice: 75, bat: 83, bowl: 10, fld: 92 },
+
+        // ==========================================
+        // 5. CAPPED ALL-ROUNDERS - SET 1 & 2 (20 Players)
+        // ==========================================
+        { name: "Glenn Maxwell", role: "All-rounder", country: "AUS", isOverseas: true, category: "Capped All-rounder (AL1)", basePrice: 200, bat: 92, bowl: 81, fld: 94 },
+        { name: "Marcus Stoinis", role: "All-rounder", country: "AUS", isOverseas: true, category: "Capped All-rounder (AL1)", basePrice: 200, bat: 90, bowl: 83, fld: 88 },
+        { name: "Axar Patel", role: "All-rounder", country: "IND", isOverseas: false, category: "Capped All-rounder (AL1)", basePrice: 200, bat: 86, bowl: 91, fld: 90 },
+        { name: "Sunil Narine", role: "All-rounder", country: "WI", isOverseas: true, category: "Capped All-rounder (AL1)", basePrice: 200, bat: 89, bowl: 94, fld: 87 },
+        { name: "Venkatesh Iyer", role: "All-rounder", country: "IND", isOverseas: false, category: "Capped All-rounder (AL1)", basePrice: 200, bat: 89, bowl: 65, fld: 86 },
+        { name: "Ravichandran Ashwin", role: "All-rounder", country: "IND", isOverseas: false, category: "Capped All-rounder (AL1)", basePrice: 200, bat: 75, bowl: 92, fld: 82 },
+        { name: "Mitchell Marsh", role: "All-rounder", country: "AUS", isOverseas: true, category: "Capped All-rounder (AL1)", basePrice: 200, bat: 90, bowl: 82, fld: 87 },
+        { name: "Harshal Patel", role: "All-rounder", country: "IND", isOverseas: false, category: "Capped All-rounder (AL1)", basePrice: 200, bat: 62, bowl: 91, fld: 85 },
+        { name: "Rachin Ravindra", role: "All-rounder", country: "NZ", isOverseas: true, category: "Capped All-rounder (AL1)", basePrice: 150, bat: 89, bowl: 78, fld: 88 },
+        { name: "Sam Curran", role: "All-rounder", country: "ENG", isOverseas: true, category: "Capped All-rounder (AL2)", basePrice: 200, bat: 86, bowl: 88, fld: 88 },
+        { name: "Marco Jansen", role: "All-rounder", country: "SA", isOverseas: true, category: "Capped All-rounder (AL2)", basePrice: 125, bat: 78, bowl: 90, fld: 87 },
+        { name: "Daryl Mitchell", role: "All-rounder", country: "NZ", isOverseas: true, category: "Capped All-rounder (AL2)", basePrice: 200, bat: 88, bowl: 70, fld: 89 },
+        { name: "Krunal Pandya", role: "All-rounder", country: "IND", isOverseas: false, category: "Capped All-rounder (AL2)", basePrice: 200, bat: 83, bowl: 86, fld: 86 },
+        { name: "Nitish Rana", role: "All-rounder", country: "IND", isOverseas: false, category: "Capped All-rounder (AL2)", basePrice: 150, bat: 87, bowl: 60, fld: 86 },
+        { name: "Washington Sundar", role: "All-rounder", country: "IND", isOverseas: false, category: "Capped All-rounder (AL2)", basePrice: 200, bat: 83, bowl: 88, fld: 87 },
+        { name: "Shardul Thakur", role: "All-rounder", country: "IND", isOverseas: false, category: "Capped All-rounder (AL2)", basePrice: 200, bat: 78, bowl: 87, fld: 84 },
+        { name: "Shivam Dube", role: "All-rounder", country: "IND", isOverseas: false, category: "Capped All-rounder (AL2)", basePrice: 150, bat: 91, bowl: 65, fld: 82 },
+        { name: "Cameron Green", role: "All-rounder", country: "AUS", isOverseas: true, category: "Capped All-rounder (AL2)", basePrice: 200, bat: 90, bowl: 85, fld: 90 },
+        { name: "Moeen Ali", role: "All-rounder", country: "ENG", isOverseas: true, category: "Capped All-rounder (AL2)", basePrice: 150, bat: 86, bowl: 85, fld: 87 },
+        { name: "Rahul Tewatia", role: "All-rounder", country: "IND", isOverseas: false, category: "Capped All-rounder (AL2)", basePrice: 100, bat: 86, bowl: 75, fld: 83 },
+
+        // ==========================================
+        // 6. CAPPED FAST BOWLERS - SET 1 & 2 (20 Players)
+        // ==========================================
+        { name: "Trent Boult", role: "Bowler", country: "NZ", isOverseas: true, category: "Capped Bowler (FA1)", basePrice: 200, bat: 20, bowl: 94, fld: 89 },
+        { name: "Josh Hazlewood", role: "Bowler", country: "AUS", isOverseas: true, category: "Capped Bowler (FA1)", basePrice: 200, bat: 20, bowl: 94, fld: 87 },
+        { name: "Pat Cummins", role: "Bowler", country: "AUS", isOverseas: true, category: "Capped Bowler (FA1)", basePrice: 200, bat: 78, bowl: 94, fld: 89 },
+        { name: "Khaleel Ahmed", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Bowler (FA1)", basePrice: 200, bat: 15, bowl: 89, fld: 83 },
+        { name: "Avesh Khan", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Bowler (FA1)", basePrice: 200, bat: 20, bowl: 89, fld: 84 },
+        { name: "Prasidh Krishna", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Bowler (FA1)", basePrice: 200, bat: 15, bowl: 88, fld: 83 },
+        { name: "T Natarajan", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Bowler (FA1)", basePrice: 200, bat: 15, bowl: 91, fld: 83 },
+        { name: "Anrich Nortje", role: "Bowler", country: "SA", isOverseas: true, category: "Capped Bowler (FA1)", basePrice: 200, bat: 20, bowl: 92, fld: 85 },
+        { name: "Deepak Chahar", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Bowler (FA2)", basePrice: 200, bat: 65, bowl: 89, fld: 85 },
+        { name: "Bhuvneshwar Kumar", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Bowler (FA2)", basePrice: 200, bat: 35, bowl: 90, fld: 87 },
+        { name: "Lockie Ferguson", role: "Bowler", country: "NZ", isOverseas: true, category: "Capped Bowler (FA2)", basePrice: 200, bat: 25, bowl: 90, fld: 85 },
+        { name: "Gerald Coetzee", role: "Bowler", country: "SA", isOverseas: true, category: "Capped Bowler (FA2)", basePrice: 125, bat: 50, bowl: 90, fld: 86 },
+        { name: "Mukesh Kumar", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Bowler (FA2)", basePrice: 200, bat: 15, bowl: 88, fld: 83 },
+        { name: "Tushar Deshpande", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Bowler (FA2)", basePrice: 100, bat: 20, bowl: 87, fld: 83 },
+        { name: "Spencer Johnson", role: "Bowler", country: "AUS", isOverseas: true, category: "Capped Bowler (FA2)", basePrice: 200, bat: 20, bowl: 89, fld: 84 },
+        { name: "Nuwan Thushara", role: "Bowler", country: "SL", isOverseas: true, category: "Capped Bowler (FA2)", basePrice: 100, bat: 15, bowl: 89, fld: 83 },
+        { name: "Nandre Burger", role: "Bowler", country: "SA", isOverseas: true, category: "Capped Bowler (FA2)", basePrice: 125, bat: 25, bowl: 89, fld: 85 },
+        { name: "Akash Deep", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Bowler (FA2)", basePrice: 100, bat: 30, bowl: 88, fld: 84 },
+        { name: "Alzarri Joseph", role: "Bowler", country: "WI", isOverseas: true, category: "Capped Bowler (FA2)", basePrice: 150, bat: 25, bowl: 88, fld: 84 },
+        { name: "Sandeep Sharma", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Bowler (FA2)", basePrice: 100, bat: 15, bowl: 88, fld: 84 },
+
+        // ==========================================
+        // 7. CAPPED SPINNERS - SET 1 & 2 (16 Players)
+        // ==========================================
+        { name: "Kuldeep Yadav", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Spinner (SP1)", basePrice: 200, bat: 25, bowl: 94, fld: 84 },
+        { name: "Varun Chakravarthy", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Spinner (SP1)", basePrice: 200, bat: 15, bowl: 93, fld: 82 },
+        { name: "Ravi Bishnoi", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Spinner (SP1)", basePrice: 200, bat: 20, bowl: 91, fld: 89 },
+        { name: "Noor Ahmad", role: "Bowler", country: "AFG", isOverseas: true, category: "Capped Spinner (SP1)", basePrice: 200, bat: 20, bowl: 91, fld: 85 },
+        { name: "Wanindu Hasaranga", role: "Bowler", country: "SL", isOverseas: true, category: "Capped Spinner (SP1)", basePrice: 200, bat: 75, bowl: 92, fld: 88 },
+        { name: "Maheesh Theekshana", role: "Bowler", country: "SL", isOverseas: true, category: "Capped Spinner (SP1)", basePrice: 200, bat: 20, bowl: 89, fld: 81 },
+        { name: "Adam Zampa", role: "Bowler", country: "AUS", isOverseas: true, category: "Capped Spinner (SP1)", basePrice: 200, bat: 20, bowl: 92, fld: 84 },
+        { name: "Rahul Chahar", role: "Bowler", country: "IND", isOverseas: false, category: "Capped Spinner (SP1)", basePrice: 100, bat: 25, bowl: 87, fld: 86 },
+        { name: "Allah Ghazanfar", role: "Bowler", country: "AFG", isOverseas: true, category: "Capped Spinner (SP2)", basePrice: 75, bat: 20, bowl: 88, fld: 84 },
+        { name: "Akeal Hosein", role: "Bowler", country: "WI", isOverseas: true, category: "Capped Spinner (SP2)", basePrice: 150, bat: 65, bowl: 88, fld: 87 },
+        { name: "Keshav Maharaj", role: "Bowler", country: "SA", isOverseas: true, category: "Capped Spinner (SP2)", basePrice: 75, bat: 50, bowl: 89, fld: 86 },
+        { name: "Mujeeb Ur Rahman", role: "Bowler", country: "AFG", isOverseas: true, category: "Capped Spinner (SP2)", basePrice: 200, bat: 20, bowl: 89, fld: 83 },
+        { name: "Adil Rashid", role: "Bowler", country: "ENG", isOverseas: true, category: "Capped Spinner (SP2)", basePrice: 200, bat: 30, bowl: 91, fld: 84 },
+        { name: "Waqar Salamkheil", role: "Bowler", country: "AFG", isOverseas: true, category: "Capped Spinner (SP2)", basePrice: 75, bat: 15, bowl: 86, fld: 82 },
+        { name: "Vijayakanth Viyaskanth", role: "Bowler", country: "SL", isOverseas: true, category: "Capped Spinner (SP2)", basePrice: 75, bat: 15, bowl: 86, fld: 82 },
+        { name: "Mitchell Santner", role: "Bowler", country: "NZ", isOverseas: true, category: "Capped Spinner (SP2)", basePrice: 100, bat: 70, bowl: 89, fld: 92 },
+
+        // ==========================================
+        // 8. UNCAPPED STARS - INDIAN & OVERSEAS (80 Players)
+        // ==========================================
+        { name: "Abhishek Sharma", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 92, bowl: 70, fld: 88 },
+        { name: "Nitish Kumar Reddy", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 89, bowl: 82, fld: 89 },
+        { name: "Mayank Yadav", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 15, bowl: 92, fld: 84 },
+        { name: "Harshit Rana", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 60, bowl: 89, fld: 85 },
+        { name: "Ayush Badoni", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batsman", basePrice: 30, bat: 86, bowl: 50, fld: 87 },
+        { name: "Nehal Wadhera", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batsman", basePrice: 30, bat: 87, bowl: 30, fld: 88 },
+        { name: "Angkrish Raghuvanshi", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batsman", basePrice: 30, bat: 86, bowl: 20, fld: 88 },
+        { name: "Sameer Rizvi", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batsman", basePrice: 30, bat: 84, bowl: 20, fld: 85 },
+        { name: "Ashutosh Sharma", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 88, bowl: 20, fld: 85 },
+        { name: "Shashank Singh", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batsman", basePrice: 30, bat: 88, bowl: 30, fld: 86 },
+        { name: "Vaibhav Arora", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 20, bowl: 85, fld: 82 },
+        { name: "Akash Madhwal", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 15, bowl: 85, fld: 82 },
+        { name: "Kumar Kushagra", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Uncapped Keeper", basePrice: 30, bat: 83, bowl: 10, fld: 85 },
+        { name: "Robin Minz", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Uncapped Keeper", basePrice: 30, bat: 84, bowl: 10, fld: 86 },
+        { name: "Anuj Rawat", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Uncapped Keeper", basePrice: 30, bat: 83, bowl: 10, fld: 86 },
+        { name: "Suyash Sharma", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 10, bowl: 85, fld: 82 },
+        { name: "Yash Thakur", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 15, bowl: 85, fld: 82 },
+        { name: "Simarjeet Singh", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 20, bowl: 86, fld: 83 },
+        { name: "Rasikh Salam Dar", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 25, bowl: 86, fld: 83 },
+        { name: "Riyan Parag", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 91, bowl: 75, fld: 90 },
+        { name: "Prabhsimran Singh", role: "Wicket-keeper", country: "IND", isOverseas: false, category: "Uncapped Keeper", basePrice: 30, bat: 87, bowl: 10, fld: 86 },
+        { name: "Harpreet Brar", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 75, bowl: 85, fld: 86 },
+        { name: "Naman Dhir", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 85, bowl: 65, fld: 88 },
+        { name: "Mahipal Lomror", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 50, bat: 84, bowl: 60, fld: 84 },
+        { name: "Abdul Samad", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 85, bowl: 50, fld: 85 },
+        { name: "Vijay Shankar", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 83, bowl: 70, fld: 85 },
+        { name: "Yash Dhull", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batter", basePrice: 30, bat: 84, bowl: 20, fld: 86 },
+        { name: "Abhinav Manohar", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batter", basePrice: 30, bat: 84, bowl: 20, fld: 85 },
+        { name: "Karun Nair", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batter", basePrice: 30, bat: 83, bowl: 10, fld: 84 },
+        { name: "Anmolpreet Singh", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batter", basePrice: 30, bat: 82, bowl: 10, fld: 83 },
+        { name: "Atharva Taide", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batter", basePrice: 30, bat: 83, bowl: 20, fld: 84 },
+        { name: "Mohit Sharma", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 50, bat: 25, bowl: 88, fld: 84 },
+        { name: "Kartik Tyagi", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 40, bat: 20, bowl: 85, fld: 82 },
+        { name: "Vijaykumar Vyshak", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 25, bowl: 85, fld: 83 },
+        { name: "Piyush Chawla", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Spinner", basePrice: 50, bat: 45, bowl: 86, fld: 80 },
+        { name: "Shreyas Gopal", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Spinner", basePrice: 30, bat: 55, bowl: 84, fld: 83 },
+        { name: "Mayank Markande", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Spinner", basePrice: 30, bat: 20, bowl: 85, fld: 82 },
+        { name: "Karn Sharma", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Spinner", basePrice: 50, bat: 45, bowl: 85, fld: 82 },
+        { name: "Kumar Kartikeya", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Spinner", basePrice: 30, bat: 20, bowl: 84, fld: 82 },
+        { name: "Manav Suthar", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Spinner", basePrice: 30, bat: 40, bowl: 84, fld: 83 },
+        { name: "Arjun Tendulkar", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 35, bowl: 82, fld: 82 },
+        { name: "Tanush Kotian", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 75, bowl: 83, fld: 84 },
+        { name: "Kamlesh Nagarkoti", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 30, bowl: 84, fld: 88 },
+        { name: "Shivam Mavi", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 50, bat: 40, bowl: 84, fld: 84 },
+        { name: "Chetan Sakariya", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 50, bat: 20, bowl: 84, fld: 82 },
+        { name: "Mukesh Choudhary", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 20, bowl: 85, fld: 83 },
+        { name: "Anshul Kamboj", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 65, bowl: 87, fld: 84 },
+        { name: "Swapnil Singh", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 78, bowl: 82, fld: 84 },
+        { name: "Anukul Roy", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 75, bowl: 82, fld: 87 },
+        { name: "Swastik Chhikara", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batter", basePrice: 30, bat: 83, bowl: 10, fld: 83 },
+        { name: "Shaik Rasheed", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batter", basePrice: 30, bat: 82, bowl: 10, fld: 85 },
+        { name: "Priyam Garg", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batter", basePrice: 30, bat: 82, bowl: 10, fld: 84 },
+        { name: "Sachin Baby", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batter", basePrice: 30, bat: 82, bowl: 30, fld: 84 },
+        { name: "Rishi Dhawan", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 76, bowl: 83, fld: 83 },
+        { name: "Rajvardhan Hangargekar", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 65, bowl: 84, fld: 84 },
+        { name: "Sanvir Singh", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 78, bowl: 75, fld: 84 },
+        { name: "Suyash Prabhudessai", role: "All-rounder", country: "IND", isOverseas: false, category: "Uncapped All-rounder", basePrice: 30, bat: 81, bowl: 40, fld: 87 },
+        { name: "Mohsin Khan", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 20, bowl: 87, fld: 83 },
+        { name: "Yash Dayal", role: "Bowler", country: "IND", isOverseas: false, category: "Uncapped Bowler", basePrice: 30, bat: 15, bowl: 86, fld: 83 },
+        { name: "Shahrukh Khan", role: "Batsman", country: "IND", isOverseas: false, category: "Uncapped Batsman", basePrice: 30, bat: 85, bowl: 40, fld: 84 },
+
+        // ==========================================
+        // 9. ACCELERATED INTERNATIONAL STARS (84 Players)
+        // ==========================================
+        { name: "Dewald Brevis", role: "Batsman", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 86, bowl: 30, fld: 86 },
+        { name: "Finn Allen", role: "Batsman", country: "NZ", isOverseas: true, category: "Overseas Capped", basePrice: 200, bat: 89, bowl: 10, fld: 86 },
+        { name: "Sherfane Rutherford", role: "Batsman", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 87, bowl: 40, fld: 87 },
+        { name: "Tim David", role: "Batsman", country: "AUS", isOverseas: true, category: "Overseas Capped", basePrice: 200, bat: 89, bowl: 20, fld: 86 },
+        { name: "Shimron Hetmyer", role: "Batsman", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 89, bowl: 10, fld: 86 },
+        { name: "Jason Holder", role: "All-rounder", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 80, bowl: 87, fld: 86 },
+        { name: "Kyle Mayers", role: "All-rounder", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 86, bowl: 78, fld: 84 },
+        { name: "Romario Shepherd", role: "All-rounder", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 85, bowl: 83, fld: 84 },
+        { name: "Matthew Wade", role: "Wicket-keeper", country: "AUS", isOverseas: true, category: "Overseas Capped", basePrice: 100, bat: 85, bowl: 10, fld: 87 },
+        { name: "Josh Inglis", role: "Wicket-keeper", country: "AUS", isOverseas: true, category: "Overseas Capped", basePrice: 200, bat: 89, bowl: 10, fld: 89 },
+        { name: "Aaron Hardie", role: "All-rounder", country: "AUS", isOverseas: true, category: "Overseas Capped", basePrice: 125, bat: 84, bowl: 82, fld: 86 },
+        { name: "Gus Atkinson", role: "Bowler", country: "ENG", isOverseas: true, category: "Overseas Capped", basePrice: 200, bat: 45, bowl: 89, fld: 85 },
+        { name: "Reece Topley", role: "Bowler", country: "ENG", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 15, bowl: 88, fld: 82 },
+        { name: "Chris Jordan", role: "Bowler", country: "ENG", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 60, bowl: 86, fld: 94 },
+        { name: "Tymal Mills", role: "Bowler", country: "ENG", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 15, bowl: 87, fld: 82 },
+        { name: "Jason Behrendorff", role: "Bowler", country: "AUS", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 15, bowl: 88, fld: 83 },
+        { name: "Jhye Richardson", role: "Bowler", country: "AUS", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 35, bowl: 88, fld: 84 },
+        { name: "Riley Meredith", role: "Bowler", country: "AUS", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 15, bowl: 87, fld: 82 },
+        { name: "Daniel Sams", role: "All-rounder", country: "AUS", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 78, bowl: 86, fld: 86 },
+        { name: "Michael Bracewell", role: "All-rounder", country: "NZ", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 84, bowl: 82, fld: 86 },
+        { name: "Jimmy Neesham", role: "All-rounder", country: "NZ", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 85, bowl: 82, fld: 86 },
+        { name: "Tim Southee", role: "Bowler", country: "NZ", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 45, bowl: 88, fld: 85 },
+        { name: "Kyle Jamieson", role: "Bowler", country: "NZ", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 55, bowl: 87, fld: 84 },
+        { name: "Dilshan Madushanka", role: "Bowler", country: "SL", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 15, bowl: 88, fld: 82 },
+        { name: "Dushmantha Chameera", role: "Bowler", country: "SL", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 20, bowl: 88, fld: 82 },
+        { name: "Dasun Shanaka", role: "All-rounder", country: "SL", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 82, bowl: 75, fld: 85 },
+        { name: "Charith Asalanka", role: "Batsman", country: "SL", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 84, bowl: 50, fld: 85 },
+        { name: "Pathum Nissanka", role: "Batsman", country: "SL", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 86, bowl: 10, fld: 84 },
+        { name: "Kusal Mendis", role: "Wicket-keeper", country: "SL", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 86, bowl: 10, fld: 86 },
+        { name: "Sikandar Raza", role: "All-rounder", country: "ZIM", isOverseas: true, category: "Overseas Capped", basePrice: 125, bat: 86, bowl: 84, fld: 86 },
+        { name: "Blessing Muzarabani", role: "Bowler", country: "ZIM", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 15, bowl: 86, fld: 82 },
+        { name: "Richard Ngarava", role: "Bowler", country: "ZIM", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 20, bowl: 86, fld: 82 },
+        { name: "Shakib Al Hasan", role: "All-rounder", country: "BAN", isOverseas: true, category: "Overseas Capped", basePrice: 100, bat: 85, bowl: 88, fld: 86 },
+        { name: "Mustafizur Rahman", role: "Bowler", country: "BAN", isOverseas: true, category: "Overseas Capped", basePrice: 200, bat: 15, bowl: 90, fld: 82 },
+        { name: "Taskin Ahmed", role: "Bowler", country: "BAN", isOverseas: true, category: "Overseas Capped", basePrice: 100, bat: 20, bowl: 88, fld: 82 },
+        { name: "Shoriful Islam", role: "Bowler", country: "BAN", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 15, bowl: 86, fld: 82 },
+        { name: "Litton Das", role: "Wicket-keeper", country: "BAN", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 84, bowl: 10, fld: 86 },
+        { name: "Najmul Hossain Shanto", role: "Batsman", country: "BAN", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 83, bowl: 20, fld: 84 },
+        { name: "Towhid Hridoy", role: "Batsman", country: "BAN", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 84, bowl: 10, fld: 84 },
+        { name: "Mohammad Nabi", role: "All-rounder", country: "AFG", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 84, bowl: 84, fld: 86 },
+        { name: "Fazalhaq Farooqi", role: "Bowler", country: "AFG", isOverseas: true, category: "Overseas Capped", basePrice: 100, bat: 15, bowl: 89, fld: 82 },
+        { name: "Azmatullah Omarzai", role: "All-rounder", country: "AFG", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 86, bowl: 85, fld: 86 },
+        { name: "Gulbadin Naib", role: "All-rounder", country: "AFG", isOverseas: true, category: "Overseas Capped", basePrice: 100, bat: 83, bowl: 82, fld: 85 },
+        { name: "Naveen-ul-Haq", role: "Bowler", country: "AFG", isOverseas: true, category: "Overseas Capped", basePrice: 150, bat: 20, bowl: 88, fld: 84 },
+        { name: "Ibrahim Zadran", role: "Batsman", country: "AFG", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 86, bowl: 10, fld: 85 },
+        { name: "Rahmat Shah", role: "Batsman", country: "AFG", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 82, bowl: 30, fld: 83 },
+        { name: "Karim Janat", role: "All-rounder", country: "AFG", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 81, bowl: 79, fld: 84 },
+        { name: "Qais Ahmad", role: "Bowler", country: "AFG", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 30, bowl: 85, fld: 82 },
+        { name: "Rilee Rossouw", role: "Batsman", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 200, bat: 88, bowl: 10, fld: 86 },
+        { name: "Tabraiz Shamsi", role: "Bowler", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 15, bowl: 88, fld: 81 },
+        { name: "Wayne Parnell", role: "All-rounder", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 100, bat: 65, bowl: 85, fld: 83 },
+        { name: "Lungi Ngidi", role: "Bowler", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 100, bat: 20, bowl: 88, fld: 82 },
+        { name: "Sisanda Magala", role: "Bowler", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 30, bowl: 85, fld: 81 },
+        { name: "George Linde", role: "All-rounder", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 78, bowl: 82, fld: 85 },
+        { name: "Dwaine Pretorius", role: "All-rounder", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 78, bowl: 84, fld: 84 },
+        { name: "Wiaan Mulder", role: "All-rounder", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 81, bowl: 81, fld: 84 },
+        { name: "Corbin Bosch", role: "All-rounder", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 75, bowl: 82, fld: 83 },
+        { name: "Andile Phehlukwayo", role: "All-rounder", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 78, bowl: 83, fld: 83 },
+        { name: "Junior Dala", role: "Bowler", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 15, bowl: 84, fld: 81 },
+        { name: "Beuran Hendricks", role: "Bowler", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 20, bowl: 84, fld: 82 },
+        { name: "Lizaad Williams", role: "Bowler", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 15, bowl: 85, fld: 82 },
+        { name: "Matthew Breetzke", role: "Batsman", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 83, bowl: 10, fld: 84 },
+        { name: "Tony de Zorzi", role: "Batsman", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 83, bowl: 10, fld: 83 },
+        { name: "Keegan Petersen", role: "Batsman", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 82, bowl: 10, fld: 85 },
+        { name: "Zubayr Hamza", role: "Batsman", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 81, bowl: 10, fld: 83 },
+        { name: "Senuran Muthusamy", role: "All-rounder", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 75, bowl: 83, fld: 83 },
+        { name: "Kyle Verreynne", role: "Wicket-keeper", country: "SA", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 82, bowl: 10, fld: 86 },
+        { name: "Oshane Thomas", role: "Bowler", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 15, bowl: 85, fld: 80 },
+        { name: "Sheldon Cottrell", role: "Bowler", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 25, bowl: 85, fld: 83 },
+        { name: "Fabian Allen", role: "All-rounder", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 80, bowl: 82, fld: 94 },
+        { name: "Keemo Paul", role: "All-rounder", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 78, bowl: 83, fld: 84 },
+        { name: "Hayden Walsh Jr.", role: "Bowler", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 45, bowl: 84, fld: 88 },
+        { name: "Brandon King", role: "Batsman", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 85, bowl: 10, fld: 84 },
+        { name: "Evin Lewis", role: "Batsman", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 100, bat: 86, bowl: 10, fld: 83 },
+        { name: "Johnson Charles", role: "Wicket-keeper", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 84, bowl: 10, fld: 83 },
+        { name: "Odean Smith", role: "All-rounder", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 81, bowl: 82, fld: 83 },
+        { name: "Ramon Simmonds", role: "Bowler", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 15, bowl: 83, fld: 81 },
+        { name: "Obed McCoy", role: "Bowler", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 20, bowl: 86, fld: 82 },
+        { name: "Jayden Seales", role: "Bowler", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 20, bowl: 85, fld: 82 },
+        { name: "Gudakesh Motie", role: "Bowler", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 55, bowl: 87, fld: 85 },
+        { name: "Alick Athanaze", role: "Batsman", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 83, bowl: 40, fld: 84 },
+        { name: "Kavem Hodge", role: "All-rounder", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 80, bowl: 78, fld: 84 },
+        { name: "Dominic Drakes", role: "All-rounder", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 75, bowl: 83, fld: 84 },
+        { name: "Matthew Forde", role: "All-rounder", country: "WI", isOverseas: true, category: "Overseas Capped", basePrice: 75, bat: 76, bowl: 84, fld: 84 }
     ];
 
-    marquee.forEach(p => {
-        const rating = Math.round((p.bat * 0.45) + (p.bowl * 0.45) + (p.fld * 0.1));
-        pool.push({ id: idCounter++, ...p, category: "Marquee", basePrice: 200, rating });
+    // Compute ratings using the department average formula: round((max(bat, bowl) + fld) / 2)
+    rawRoster.forEach(player => {
+        const rating = calculateDepartmentRating(player.bat, player.bowl, player.fld);
+        pool.push({
+            id: idCounter++,
+            ...player,
+            rating: rating
+        });
     });
 
-    const foreignNations = ["AUS", "ENG", "SA", "WI", "NZ", "AFG"];
-    const cappedPrices = [50, 75, 100, 150];
-
-    for (let i = 1; i <= 35; i++) {
-        const isOverseas = i % 3 === 0;
-        const bat = Math.floor(Math.random() * 14) + 80;
-        pool.push({
-            id: idCounter++,
-            name: isOverseas ? `Intl Batter #${i}` : `Indian Batter #${i}`,
-            role: "Batsman", category: "Capped Batter",
-            country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
-            isOverseas, basePrice: cappedPrices[i % cappedPrices.length],
-            bat, bowl: 25, fld: 80, rating: bat
-        });
-    }
-
-    for (let i = 1; i <= 25; i++) {
-        const isOverseas = i % 3 === 0;
-        const bat = Math.floor(Math.random() * 12) + 78;
-        pool.push({
-            id: idCounter++,
-            name: isOverseas ? `Intl Keeper #${i}` : `Indian Keeper #${i}`,
-            role: "Wicket-keeper", category: "Capped Wicket-keeper",
-            country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
-            isOverseas, basePrice: cappedPrices[i % cappedPrices.length],
-            bat, bowl: 10, fld: 88, rating: bat
-        });
-    }
-
-    for (let i = 1; i <= 45; i++) {
-        const isOverseas = i % 2 === 0;
-        const bat = Math.floor(Math.random() * 15) + 75;
-        const bowl = Math.floor(Math.random() * 15) + 75;
-        pool.push({
-            id: idCounter++,
-            name: isOverseas ? `Intl All-Rounder #${i}` : `Indian All-Rounder #${i}`,
-            role: "All-rounder", category: "Capped All-rounder",
-            country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
-            isOverseas, basePrice: cappedPrices[i % cappedPrices.length],
-            bat, bowl, fld: 80, rating: Math.round((bat + bowl) / 2)
-        });
-    }
-
-    for (let i = 1; i <= 55; i++) {
-        const isOverseas = i % 3 === 0;
-        const bowl = Math.floor(Math.random() * 14) + 80;
-        pool.push({
-            id: idCounter++,
-            name: isOverseas ? `Intl Bowler #${i}` : `Indian Bowler #${i}`,
-            role: "Bowler", category: "Capped Bowler",
-            country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
-            isOverseas, basePrice: cappedPrices[i % cappedPrices.length],
-            bat: 25, bowl, fld: 75, rating: bowl
-        });
-    }
-
-    const uncappedRoles = ["Batsman", "Wicket-keeper", "All-rounder", "Bowler"];
-    for (let i = 1; i <= 80; i++) {
-        const role = uncappedRoles[i % uncappedRoles.length];
-        const isOverseas = i % 8 === 0;
-        const rating = Math.floor(Math.random() * 14) + 68;
-        pool.push({
-            id: idCounter++,
-            name: isOverseas ? `Emerging Overseas #${i}` : `Domestic Talent #${i}`,
-            role, category: `Uncapped ${role}`,
-            country: isOverseas ? foreignNations[i % foreignNations.length] : "IND",
-            isOverseas, basePrice: 20,
-            bat: rating, bowl: rating, fld: 70, rating
-        });
-    }
-
-    return pool;
+    return pool; // Total: 254 Authentic Players
 }
 
 function createRoom(roomCode, hostSocketId) {
@@ -153,14 +363,15 @@ function createRoom(roomCode, hostSocketId) {
         unsoldPool: [],
         currentPlayerIndex: 0,
         timerInterval: null,
-        phase: "AUCTION",
+        phase: "LOBBY",
+        isStarted: false,
         skippedBy: new Set(),
         auction: {
             player: playerQueue[0],
             highestBid: playerQueue[0].basePrice,
             highestBidder: "No Bids",
             timer: 12,
-            active: true
+            active: false
         }
     };
 }
@@ -276,10 +487,10 @@ function calculateFinalStandings(room) {
         xi.forEach(player => {
             let pts = player.rating;
             if (team.captainId === player.id) {
-                pts = pts * 2.0;
+                pts = pts * 2.0; // 2x Multiplier
                 captainName = player.name;
             } else if (team.viceCaptainId === player.id) {
-                pts = pts * 1.5;
+                pts = pts * 1.5; // 1.5x Multiplier
                 vcName = player.name;
             }
             playingXIRating += pts;
@@ -331,6 +542,7 @@ io.on('connection', (socket) => {
 
         socket.emit('rejoinedSuccess', {
             phase: room.phase,
+            isStarted: room.isStarted,
             auction: room.auction,
             teams: room.teams,
             myTeamKey: socket.claimedTeamKey,
@@ -350,12 +562,8 @@ io.on('connection', (socket) => {
         socket.emit('roomCreated', { 
             roomCode, 
             teams: rooms[roomCode].teams,
-            auction: rooms[roomCode].auction,
-            currentIndex: 1,
-            totalPlayers: rooms[roomCode].playerQueue.length
+            claimedCount: 0
         });
-
-        startRoomTimer(roomCode);
     });
 
     socket.on('joinRoom', ({ roomCode, username, userId }) => {
@@ -406,6 +614,7 @@ io.on('connection', (socket) => {
             teamKey: uniqueKey,
             displayName,
             phase: room.phase,
+            isStarted: room.isStarted,
             teams: room.teams,
             auction: room.auction,
             currentIndex: room.currentPlayerIndex + 1,
@@ -418,10 +627,30 @@ io.on('connection', (socket) => {
         });
     });
 
+    socket.on('startAuctionByAdmin', () => {
+        const roomCode = socket.roomCode;
+        const room = rooms[roomCode];
+        if (!room || socket.id !== room.host) return;
+
+        if (room.isStarted) return;
+        room.isStarted = true;
+        room.phase = "AUCTION";
+        room.auction.active = true;
+
+        io.to(roomCode).emit('auctionStartedNow', {
+            auction: room.auction,
+            teams: room.teams,
+            currentIndex: 1,
+            totalPlayers: room.playerQueue.length
+        });
+
+        startRoomTimer(roomCode);
+    });
+
     socket.on('placeBid', () => {
         const roomCode = socket.roomCode;
         const room = rooms[roomCode];
-        if (!room || !room.auction.active) return;
+        if (!room || !room.auction.active || !room.isStarted) return;
 
         const teamKey = socket.claimedTeamKey;
         if (!teamKey || !room.teams[teamKey]) {
