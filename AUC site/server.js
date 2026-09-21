@@ -14,73 +14,82 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-const INITIAL_PURSE = 12000; // ₹120 Crore (in Lakhs)[cite: 1]
-const SQUAD_MAX = 25;        //[cite: 1]
-const SQUAD_MIN = 15;        // Mandatory minimum squad floor to prevent under-bidding
-const LOWEST_BASE_PRICE = 30; // ₹30L minimum base price in the pool[cite: 1]
-const TEAM_CODES = ["RCB", "CSK", "MI", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"]; //[cite: 1]
+// Framework Core Parameters
+const INITIAL_PURSE = 10000; // ₹100 Crore in Lakhs
+const SQUAD_MAX = 25;
+const SQUAD_MIN = 18;
+const LOWEST_BASE_PRICE = 20; // ₹20 Lakhs lowest tier
+const TEAM_CODES = ["CSK", "MI", "RCB", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"];
 
 const rooms = {};
 
+// Bid Increment Slabs
 function getNextBidIncrement(currentBid) {
-    if (currentBid < 100) return 5;       // Below ₹1 Cr: +₹5L[cite: 1]
-    if (currentBid < 200) return 10;      // ₹1 Cr – ₹2 Cr: +₹10L
-    if (currentBid < 500) return 25;      // ₹2 Cr – ₹5 Cr: +₹25L[cite: 1]
-    return 50;                            // Above ₹5 Cr: +₹50L[cite: 1]
+    if (currentBid < 100) return 5;       // Up to ₹1 Cr: +₹5L
+    if (currentBid < 500) return 25;      // ₹1 Cr – ₹5 Cr: +₹25L
+    return 50;                            // Above ₹5 Cr: +₹50L
 }
 
-function generate577PlayerPool() {
-    const marqueePlayers = [
-        { name: "Rishabh Pant", role: "Wicketkeeper", basePrice: 200, rating: 95 },
-        { name: "Shreyas Iyer", role: "Batter", basePrice: 200, rating: 92 },
-        { name: "KL Rahul", role: "Wicketkeeper", basePrice: 200, rating: 93 },
-        { name: "Yuzvendra Chahal", role: "Bowler", basePrice: 200, rating: 91 },
-        { name: "Arshdeep Singh", role: "Bowler", basePrice: 200, rating: 90 },
-        { name: "Mitchell Starc", role: "Bowler", basePrice: 200, rating: 94 },
-        { name: "Jos Buttler", role: "Wicketkeeper", basePrice: 200, rating: 94 },
-        { name: "Mohammed Shami", role: "Bowler", basePrice: 200, rating: 92 },
-        { name: "Mohammed Siraj", role: "Bowler", basePrice: 200, rating: 89 },
-        { name: "Liam Livingstone", role: "All-Rounder", basePrice: 200, rating: 88 },
-        { name: "David Miller", role: "Batter", basePrice: 150, rating: 89 },
-        { name: "Kagiso Rabada", role: "Bowler", basePrice: 200, rating: 91 },
-        { name: "Ravichandran Ashwin", role: "All-Rounder", basePrice: 200, rating: 88 },
-        { name: "Marcus Stoinis", role: "All-Rounder", basePrice: 150, rating: 87 },
-        { name: "Glenn Maxwell", role: "All-Rounder", basePrice: 200, rating: 90 },
-        { name: "Venkatesh Iyer", role: "All-Rounder", basePrice: 150, rating: 86 },
-        { name: "Quinton de Kock", role: "Wicketkeeper", basePrice: 150, rating: 90 },
-        { name: "Phil Salt", role: "Wicketkeeper", basePrice: 150, rating: 89 },
-        { name: "Josh Hazlewood", role: "Bowler", basePrice: 200, rating: 91 },
-        { name: "Bhuvneshwar Kumar", role: "Bowler", basePrice: 150, rating: 87 }
-    ];
-
-    const roles = ["Batter", "Bowler", "All-Rounder", "Wicketkeeper"];
-    const basePrices = [30, 50, 75, 125, 150, 200];
+// Player Pool: Marquee -> Capped -> Uncapped
+function generateStructuredPlayerPool() {
     let pool = [];
+    let idCounter = 1;
 
-    for (let i = 0; i < marqueePlayers.length; i++) {
+    // Set 1: Marquee Tier (Base ₹2 Cr)
+    const marquee = [
+        { name: "Rishabh Pant", role: "Wicket-keeper", rating: 95 },
+        { name: "Shreyas Iyer", role: "Batsman", rating: 93 },
+        { name: "Mitchell Starc", role: "Bowler", rating: 94 },
+        { name: "Jos Buttler", role: "Wicket-keeper", rating: 94 },
+        { name: "Yuzvendra Chahal", role: "Bowler", rating: 91 },
+        { name: "Arshdeep Singh", role: "Bowler", rating: 90 },
+        { name: "KL Rahul", role: "Wicket-keeper", rating: 93 },
+        { name: "Mohammed Shami", role: "Bowler", rating: 92 },
+        { name: "Glenn Maxwell", role: "All-rounder", rating: 91 },
+        { name: "Liam Livingstone", role: "All-rounder", rating: 89 }
+    ];
+    marquee.forEach(p => {
         pool.push({
-            id: i + 1,
-            name: marqueePlayers[i].name,
-            role: marqueePlayers[i].role,
-            basePrice: marqueePlayers[i].basePrice,
-            rating: marqueePlayers[i].rating,
-            isUncapped: false
+            id: idCounter++,
+            name: p.name,
+            role: p.role,
+            category: "Marquee",
+            basePrice: 200,
+            rating: p.rating
+        });
+    });
+
+    // Set 2: Capped Tier (Base ₹50L - ₹1.5 Cr)
+    const cappedRoles = ["Batsman", "Bowler", "All-rounder", "Wicket-keeper"];
+    const cappedPrices = [50, 75, 100, 150];
+    for (let i = 1; i <= 100; i++) {
+        const role = cappedRoles[i % cappedRoles.length];
+        const basePrice = cappedPrices[i % cappedPrices.length];
+        pool.push({
+            id: idCounter++,
+            name: `Capped Player #${i}`,
+            role: role,
+            category: "Capped",
+            basePrice: basePrice,
+            rating: Math.floor(Math.random() * 15) + 78
         });
     }
 
-    for (let i = marqueePlayers.length + 1; i <= 577; i++) {
-        const assignedRole = roles[Math.floor(Math.random() * roles.length)];
-        const assignedPrice = basePrices[Math.floor(Math.random() * basePrices.length)];
-        const isUncapped = Math.random() > 0.7;
+    // Set 3: Uncapped Tier (Base ₹20L - ₹30L)
+    const uncappedPrices = [20, 30];
+    for (let i = 1; i <= 120; i++) {
+        const role = cappedRoles[i % cappedRoles.length];
+        const basePrice = uncappedPrices[i % uncappedPrices.length];
         pool.push({
-            id: i,
-            name: `Player #${i}`,
-            role: assignedRole,
-            basePrice: isUncapped ? 30 : assignedPrice,
-            rating: Math.floor(Math.random() * 25) + 65,
-            isUncapped: isUncapped
+            id: idCounter++,
+            name: `Uncapped Talent #${i}`,
+            role: role,
+            category: "Uncapped",
+            basePrice: basePrice,
+            rating: Math.floor(Math.random() * 18) + 65
         });
     }
+
     return pool;
 }
 
@@ -96,20 +105,21 @@ function createRoom(roomCode, hostSocketId) {
         };
     });
 
-    const playerQueue = generate577PlayerPool();
+    const playerQueue = generateStructuredPlayerPool();
 
     rooms[roomCode] = {
         code: roomCode,
         host: hostSocketId,
         teams: t,
         playerQueue: playerQueue,
+        unsoldPool: [],
         currentPlayerIndex: 0,
         timerInterval: null,
         auction: {
             player: playerQueue[0],
             highestBid: playerQueue[0].basePrice,
             highestBidder: "No Bids",
-            timer: 8,
+            timer: 12,
             active: true,
             status: "LIVE"
         }
@@ -118,23 +128,19 @@ function createRoom(roomCode, hostSocketId) {
 
 function evaluateAuctionWinner(teams) {
     let leaderboard = [];
-
     for (let code in teams) {
         const team = teams[code];
         const totalRating = team.squad.reduce((sum, p) => sum + p.rating, 0);
-        const squadCount = team.squad.length;
-        let totalScore = totalRating + Math.floor(team.purse / 100);
-
+        const score = totalRating + Math.floor(team.purse / 100);
         leaderboard.push({
             teamCode: code,
-            manager: team.claimedByName || "AI / Unclaimed",
-            squadCount: squadCount,
+            manager: team.claimedByName || "Unclaimed",
+            squadCount: team.squad.length,
             totalRating: totalRating,
             purseLeft: team.purse,
-            finalScore: totalScore
+            finalScore: score
         });
     }
-
     leaderboard.sort((a, b) => b.finalScore - a.finalScore);
     return leaderboard;
 }
@@ -144,7 +150,7 @@ function startRoomTimer(roomCode) {
     if (!room) return;
 
     clearInterval(room.timerInterval);
-    room.auction.timer = 8;
+    room.auction.timer = 12;
     room.auction.active = true;
     room.auction.status = "LIVE";
 
@@ -178,13 +184,14 @@ function handleAuctionEnd(roomCode) {
 
         io.to(roomCode).emit('logEvent', {
             type: 'SOLD',
-            text: `🔨 SOLD: ${player.name} (${player.role}) to ${winningTeam} for ₹${winningBid}L`
+            text: `🔨 SOLD: ${player.name} (${player.role} - ${player.category}) to ${winningTeam} for ₹${winningBid}L`
         });
     } else {
-        room.auction.status = `UNSOLD!`;[cite: 1]
+        room.auction.status = "UNSOLD";
+        room.unsoldPool.push(player);
         io.to(roomCode).emit('logEvent', {
             type: 'UNSOLD',
-            text: `❌ UNSOLD: ${player.name} (${player.role}) goes unsold`
+            text: `❌ UNSOLD: ${player.name} (${player.category}) enters re-auction pool`
         });
     }
 
@@ -202,33 +209,31 @@ function handleAuctionEnd(roomCode) {
                 player: nextPlayer,
                 highestBid: nextPlayer.basePrice,
                 highestBidder: "No Bids",
-                timer: 8,
+                timer: 12,
                 active: true,
                 status: "LIVE"
             };
-            io.to(roomCode).emit('nextPlayer', { 
-                auction: room.auction, 
-                teams: room.teams, 
-                currentIndex: room.currentPlayerIndex + 1 
+            io.to(roomCode).emit('nextPlayer', {
+                auction: room.auction,
+                teams: room.teams,
+                currentIndex: room.currentPlayerIndex + 1,
+                totalPlayers: room.playerQueue.length
             });
             startRoomTimer(roomCode);
         } else {
             room.auction.status = "MEGA AUCTION COMPLETED!";
             const leaderboard = evaluateAuctionWinner(room.teams);
             const winner = leaderboard[0];
-
-            io.to(roomCode).emit('auctionFinished', { 
-                status: `🏆 AUCTION OVER! WINNER: ${winner.teamCode} (${winner.manager}) with Score ${winner.finalScore}!`,
+            io.to(roomCode).emit('auctionFinished', {
                 winner: winner,
                 leaderboard: leaderboard,
-                teams: room.teams 
+                teams: room.teams
             });
         }
     }, 2500);
 }
 
 io.on('connection', (socket) => {
-
     socket.on('createRoom', ({ username }) => {
         const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
         createRoom(roomCode, socket.id);
@@ -241,7 +246,8 @@ io.on('connection', (socket) => {
             isHost: true,
             auction: rooms[roomCode].auction,
             teams: rooms[roomCode].teams,
-            currentIndex: 1
+            currentIndex: 1,
+            totalPlayers: rooms[roomCode].playerQueue.length
         });
         startRoomTimer(roomCode);
     });
@@ -259,9 +265,9 @@ io.on('connection', (socket) => {
             isHost: socket.id === room.host,
             auction: room.auction,
             teams: room.teams,
-            currentIndex: room.currentPlayerIndex + 1
+            currentIndex: room.currentPlayerIndex + 1,
+            totalPlayers: room.playerQueue.length
         });
-
         io.to(roomCode).emit('updateTeams', room.teams);
     });
 
@@ -270,11 +276,11 @@ io.on('connection', (socket) => {
         if (!room) return;
 
         if (socket.claimedTeam) {
-            return socket.emit('errorMsg', `You have already claimed ${socket.claimedTeam}! Team switching mid-game is disabled.`);
+            return socket.emit('errorMsg', `You already manage ${socket.claimedTeam}. Mid-game switching is forbidden.`);
         }
 
         if (room.currentPlayerIndex > 0 || room.auction.highestBidder !== "No Bids") {
-            return socket.emit('errorMsg', "Team selection is locked once active bidding begins!");
+            return socket.emit('errorMsg', "Franchise selection is locked once live bidding starts.");
         }
 
         if (!room.teams[teamCode].claimedBy) {
@@ -285,7 +291,6 @@ io.on('connection', (socket) => {
         } else {
             socket.emit('errorMsg', `${teamCode} is already claimed by ${room.teams[teamCode].claimedByName}!`);
         }
-
         io.to(socket.roomCode).emit('updateTeams', room.teams);
     });
 
@@ -294,76 +299,53 @@ io.on('connection', (socket) => {
         if (!room || !room.auction.active) return;
 
         const bidderName = socket.claimedTeam;
-        if (!bidderName) return socket.emit('errorMsg', "You must claim a franchise before bidding!");
+        if (!bidderName) return socket.emit('errorMsg', "Claim a team before placing bids!");
 
         const team = room.teams[bidderName];
-        if (team.squad.length >= SQUAD_MAX) return socket.emit('errorMsg', `Squad full (${SQUAD_MAX} players)![cite: 1]`);
+        if (team.squad.length >= SQUAD_MAX) return socket.emit('errorMsg', `Squad is at capacity (${SQUAD_MAX} players).`);
 
         const currentBid = room.auction.highestBid;
         const increment = getNextBidIncrement(currentBid);
         const requiredBid = currentBid + increment;
 
-        // 1. Check direct purse affordability
         if (requiredBid > team.purse) {
             return socket.emit('errorMsg', `Insufficient purse! Need ₹${requiredBid}L.`);
         }
 
-        // 2. CRITICAL FRAMEWORK RULE: Minimum Squad Purse Reservation Check[cite: 1]
-        // Formula: Remaining Purse after purchase must be enough to buy remaining min slots at base price (₹30L)
-        const slotsNeededToReachMin = Math.max(0, SQUAD_MIN - (team.squad.length + 1));
-        const reservedPurseNeeded = slotsNeededToReachMin * LOWEST_BASE_PRICE;
-        const purseAfterBid = team.purse - requiredBid;
+        const slotsNeededForMin = Math.max(0, SQUAD_MIN - (team.squad.length + 1));
+        const minPurseReserveRequired = slotsNeededForMin * LOWEST_BASE_PRICE;
+        const purseRemainingAfterBid = team.purse - requiredBid;
 
-        if (purseAfterBid < reservedPurseNeeded) {
-            return socket.emit('errorMsg', `Bid blocked! You must reserve funds to fill a minimum squad of ${SQUAD_MIN} players.`);
+        if (purseRemainingAfterBid < minPurseReserveRequired) {
+            return socket.emit('errorMsg', `Bid rejected! You must keep ₹${minPurseReserveRequired}L in reserve to complete the minimum ${SQUAD_MIN} player squad.`);
         }
 
         room.auction.highestBid = requiredBid;
         room.auction.highestBidder = bidderName;
-        
-        // Timer Soft Extension: If bid is placed with <= 3 seconds remaining, extend back to 5 seconds
-        if (room.auction.timer <= 3) {
-            room.auction.timer = 5;
-        } else {
-            room.auction.timer = Math.max(room.auction.timer, 5);
-        }
+        room.auction.timer = Math.max(room.auction.timer, 5);
 
         io.to(socket.roomCode).emit('bidUpdated', room.auction);
         io.to(socket.roomCode).emit('logEvent', {
             type: 'BID',
-            text: `💰 BID: ${bidderName} raised bid to ₹${requiredBid}L (+₹${increment}L)`
+            text: `💰 BID: ${bidderName} raised to ₹${requiredBid}L (+₹${increment}L)`
         });
     });
 
-    socket.on('adminAutoBid', () => {
+    socket.on('adminForceSold', () => {
         const room = rooms[socket.roomCode];
         if (!room || socket.id !== room.host || !room.auction.active) return;
+        clearInterval(room.timerInterval);
+        room.auction.active = false;
+        handleAuctionEnd(socket.roomCode);
+    });
 
-        const currentBid = room.auction.highestBid;
-        const increment = getNextBidIncrement(currentBid);
-        const requiredBid = currentBid + increment;
-
-        const availableTeams = TEAM_CODES.filter(code => {
-            const team = room.teams[code];
-            const slotsNeededToReachMin = Math.max(0, SQUAD_MIN - (team.squad.length + 1));
-            const reservedPurseNeeded = slotsNeededToReachMin * LOWEST_BASE_PRICE;
-            return team.squad.length < SQUAD_MAX && 
-                   team.purse >= requiredBid &&
-                   (team.purse - requiredBid >= reservedPurseNeeded);
-        });
-
-        if (availableTeams.length > 0) {
-            const randomTeam = availableTeams[Math.floor(Math.random() * availableTeams.length)];
-            room.auction.highestBid = requiredBid;
-            room.auction.highestBidder = randomTeam;
-            room.auction.timer = Math.max(room.auction.timer, 5);
-
-            io.to(socket.roomCode).emit('bidUpdated', room.auction);
-            io.to(socket.roomCode).emit('logEvent', {
-                type: 'BID',
-                text: `🤖 BID (SIM): ${randomTeam} raised bid to ₹${requiredBid}L (+₹${increment}L)`
-            });
-        }
+    socket.on('adminForceUnsold', () => {
+        const room = rooms[socket.roomCode];
+        if (!room || socket.id !== room.host || !room.auction.active) return;
+        clearInterval(room.timerInterval);
+        room.auction.active = false;
+        room.auction.highestBidder = "No Bids";
+        handleAuctionEnd(socket.roomCode);
     });
 
     socket.on('disconnect', () => {
