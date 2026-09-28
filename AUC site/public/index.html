@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPL Mega Auction Live V2 (Crores Edition)</title>
+    <title>IPL Mega Auction Live</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
@@ -111,7 +111,7 @@
 
 <div class="container">
     <header>
-        <div class="logo">🏏 IPL MEGA AUCTION PRO (₹ CR EDITION)</div>
+        <div class="logo">🏏 IPL MEGA AUCTION PRO</div>
         <div id="server-status" style="font-weight:700; color:var(--text-sub);">Connecting...</div>
     </header>
 
@@ -252,12 +252,14 @@
         localStorage.setItem('ipl_auction_uid', userId);
     }
 
+    // Force pure HTTPS polling (avoids cellular carrier WebSocket blocking and Private DNS issues)
     const socket = io('https://auction-simulator-3.onrender.com', {
-        transports: ['polling', 'websocket'],
+        transports: ['polling'],
+        upgrade: false,
         secure: true,
-        timeout: 10000,
+        timeout: 20000,
         reconnection: true,
-        reconnectionAttempts: 10,
+        reconnectionAttempts: 20,
         reconnectionDelay: 1000
     });
 
@@ -276,8 +278,11 @@
     }, 4 * 60 * 1000);
 
     socket.on('connect', () => {
-        document.getElementById('server-status').innerText = '🟢 Connected';
-        document.getElementById('server-status').style.color = 'var(--green)';
+        const statusEl = document.getElementById('server-status');
+        if (statusEl) {
+            statusEl.innerText = '🟢 Connected';
+            statusEl.style.color = 'var(--green)';
+        }
 
         const savedRoom = sessionStorage.getItem('active_auction_room');
         if (savedRoom) {
@@ -285,14 +290,21 @@
         }
     });
 
-    socket.on('connect_error', () => {
-        document.getElementById('server-status').innerText = '🟡 Reconnecting...';
-        document.getElementById('server-status').style.color = 'var(--accent)';
+    socket.on('connect_error', (err) => {
+        console.warn('Socket connect error:', err);
+        const statusEl = document.getElementById('server-status');
+        if (statusEl) {
+            statusEl.innerText = '🟡 Reconnecting...';
+            statusEl.style.color = 'var(--accent)';
+        }
     });
 
     socket.on('disconnect', () => {
-        document.getElementById('server-status').innerText = '🔴 Disconnected';
-        document.getElementById('server-status').style.color = 'var(--red)';
+        const statusEl = document.getElementById('server-status');
+        if (statusEl) {
+            statusEl.innerText = '🔴 Disconnected';
+            statusEl.style.color = 'var(--red)';
+        }
     });
 
     function setTab(tab) {
