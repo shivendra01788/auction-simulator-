@@ -252,14 +252,13 @@
         localStorage.setItem('ipl_auction_uid', userId);
     }
 
-    // Force pure HTTPS polling (avoids cellular carrier WebSocket blocking and Private DNS issues)
+    // Connect with Polling-first and full transport fallback
     const socket = io('https://auction-simulator-3.onrender.com', {
-        transports: ['polling'],
-        upgrade: false,
+        transports: ['polling', 'websocket'],
         secure: true,
         timeout: 20000,
         reconnection: true,
-        reconnectionAttempts: 20,
+        reconnectionAttempts: 25,
         reconnectionDelay: 1000
     });
 
@@ -278,6 +277,7 @@
     }, 4 * 60 * 1000);
 
     socket.on('connect', () => {
+        console.log("Socket connected:", socket.id);
         const statusEl = document.getElementById('server-status');
         if (statusEl) {
             statusEl.innerText = '🟢 Connected';
@@ -291,7 +291,7 @@
     });
 
     socket.on('connect_error', (err) => {
-        console.warn('Socket connect error:', err);
+        console.warn('Socket connect error:', err.message);
         const statusEl = document.getElementById('server-status');
         if (statusEl) {
             statusEl.innerText = '🟡 Reconnecting...';
@@ -299,7 +299,8 @@
         }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
+        console.warn('Socket disconnected:', reason);
         const statusEl = document.getElementById('server-status');
         if (statusEl) {
             statusEl.innerText = '🔴 Disconnected';
