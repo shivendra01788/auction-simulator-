@@ -1,12 +1,13 @@
 {
-  "name": "ipl-mega-auction",
+  "name": "auction-simulator-backend",
   "version": "1.0.0",
-  "description": "Real-time cricket mega auction application using Node.js and Socket.io",
+  "description": "Real-time backend for auction simulator",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.19.2",
     "socket.io": "^4.7.5"
   }
