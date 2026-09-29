@@ -645,7 +645,7 @@ io.on('connection', (socket) => {
 
         room.auction.highestBid = nextBid;
         room.auction.highestBidder = teamKey;
-        room.auction.timer = Math.max(room.auction.timer, 5); // anti-sniping
+        room.auction.timer = Math.max(room.auction.timer, 10); // anti-sniping: every bid guarantees 10s left
 
         io.to(roomCode).emit('bidUpdated', {
             highestBid: nextBid,
@@ -722,6 +722,21 @@ io.on('connection', (socket) => {
         if (!room || socket.id !== room.host || !room.auction.active) return;
         room.auction.highestBidder = "No Bids";
         handleAuctionEnd(socket.roomCode);
+    });
+
+    // Host ends the auction early: whatever is in progress is left unsold,
+    // remaining un-auctioned players are skipped, and everyone moves straight
+    // to the Playing XI selection phase.
+    socket.on('adminEndAuction', () => {
+        const room = rooms[socket.roomCode];
+        if (!room || socket.id !== room.host || room.phase !== "AUCTION") return;
+
+        clearInterval(room.timerInterval);
+        room.auction.active = false;
+        room.phase = "SELECTION";
+
+        io.to(socket.roomCode).emit('auctionEndedByAdmin');
+        io.to(socket.roomCode).emit('startSelectionPhase', { teams: room.teams });
     });
 });
 
