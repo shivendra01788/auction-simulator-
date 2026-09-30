@@ -278,7 +278,8 @@ function createRoom(roomCode, hostSocketId, hostUserId) {
             highestBid: playerQueue[0].basePrice,
             highestBidder: "No Bids",
             timer: 12,
-            active: false
+            active: false,
+            isPaused: false
         }
     };
 }
@@ -349,7 +350,8 @@ function handleAuctionEnd(roomCode) {
                 highestBid: nextPlayer.basePrice,
                 highestBidder: "No Bids",
                 timer: 12,
-                active: true
+                active: true,
+                isPaused: false
             };
             io.to(roomCode).emit('nextPlayer', {
                 auction: room.auction,
@@ -609,7 +611,8 @@ io.on('connection', (socket) => {
     socket.on('placeBid', () => {
         const roomCode = socket.roomCode;
         const room = rooms[roomCode];
-        if (!room || !room.auction.active) return;
+        // Stop users from bidding if the auction is paused
+        if (!room || !room.auction.active || room.auction.isPaused) return;
 
         const teamKey = socket.claimedTeamKey;
         if (!teamKey || !room.teams[teamKey]) {
@@ -653,7 +656,8 @@ io.on('connection', (socket) => {
 
     socket.on('skipForMe', () => {
         const room = rooms[socket.roomCode];
-        if (!room || !room.auction.active || !socket.claimedTeamKey) return;
+        // Stop skips from registering while the game is paused
+        if (!room || !room.auction.active || room.auction.isPaused || !socket.claimedTeamKey) return;
 
         room.skippedBy.add(socket.claimedTeamKey);
         const totalManagers = Object.keys(room.teams).length;
@@ -719,6 +723,35 @@ io.on('connection', (socket) => {
         if (!room || socket.id !== room.host || !room.auction.active) return;
         room.auction.highestBidder = "No Bids";
         handleAuctionEnd(socket.roomCode);
+    });
+
+    // ADMIN PAUSE AUCTION
+    socket.on('adminPauseAuction', () => {
+        const room = rooms[socket.roomCode];
+        if (!room || socket.id !== room.host || !room.auction.active || room.auction.isPaused) return;
+        
+        clearInterval(room.timerInterval);
+        room.auction.isPaused = true;
+        io.to(socket.roomCode).emit('auctionPaused');
+    });
+
+    // ADMIN RESUME AUCTION
+    socket.on('adminResumeAuction', () => {
+        const room = rooms[socket.roomCode];
+        if (!room || socket.id !== room.host || !room.auction.active || !room.auction.isPaused) return;
+        
+        room.auction.isPaused = false;
+        io.to(socket.roomCode).emit('auctionResumed');
+        
+        room.timerInterval = setInterval(() => {
+            if (room.auction.timer > 0) {
+                room.auction.timer--;
+                io.to(socket.roomCode).emit('timerUpdate', room.auction.timer);
+            } else {
+                clearInterval(room.timerInterval);
+                handleAuctionEnd(socket.roomCode);
+            }
+        }, 1000);
     });
 
     // ADMIN END AUCTION EARLY
