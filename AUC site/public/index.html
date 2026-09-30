@@ -4,15 +4,75 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IPL Mega Auction Live</title>
-    <!-- Client library: cdn.socket.io -> jsDelivr -> the auction server itself -->
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <!-- Client library load order: the auction server itself (always matches the server version,
+         no third-party CDN needed) -> jsDelivr -> cdn.socket.io -->
+    <script>
+        (function () {
+            var h = location.hostname;
+            var selfHosted = /onrender\.com$/.test(h) || h === 'localhost' || h === '127.0.0.1' ||
+                /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h);
+            // Same origin when this page is served by the auction server (Render / localhost / LAN),
+            // otherwise (Netlify, file://, ...) use the Render backend.
+            window.__SERVER_BASE = selfHosted ? '' : 'https://auction-simulator-3.onrender.com';
+            document.write('<script src="' + window.__SERVER_BASE + '/socket.io/socket.io.js"><\/script>');
+        })();
+    </script>
     <script>
         window.io || document.write('<script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js"><\/script>');
     </script>
     <script>
-        window.io || document.write('<script src="https://auction-simulator-3.onrender.com/socket.io/socket.io.js"><\/script>');
+        window.io || document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\/script>');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        window.Swal || document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.14.5/sweetalert2.all.min.js"><\/script>');
+    </script>
+    <script>
+        // Last-resort popup library: if SweetAlert2 could not be downloaded (CDN blocked), every
+        // dialog / confirm / error message would silently break. This tiny stand-in keeps them working.
+        if (!window.Swal) {
+            window.Swal = (function () {
+                var current = null;
+                var ICONS = { warning: '⚠️', error: '❌', info: 'ℹ️', success: '✅', question: '❓' };
+                function close() { if (current && current.parentNode) current.parentNode.removeChild(current); current = null; }
+                function el(tag, css, html) { var e = document.createElement(tag); if (css) e.style.cssText = css; if (html != null) e.innerHTML = html; return e; }
+                function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+                function fire(a, b, c) {
+                    var o = (a && typeof a === 'object') ? a : { title: a, text: b, icon: c };
+                    return new Promise(function (resolve) {
+                        close();
+                        if (o.toast) {
+                            var t = el('div', 'position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#111827;color:#f9fafb;border:1px solid #1f293d;padding:10px 16px;border-radius:8px;z-index:10000;font-weight:700;', (ICONS[o.icon] || '') + ' ' + esc(o.title));
+                            document.body.appendChild(t); current = t;
+                            setTimeout(function () { if (current === t) close(); resolve({ isConfirmed: true }); }, o.timer || 3000);
+                            return;
+                        }
+                        var ov = el('div', 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px;');
+                        var box = el('div', 'background:#111827;color:#f9fafb;border:1px solid #1f293d;border-radius:12px;padding:24px;width:100%;max-width:' + (o.width || '460px') + ';max-height:90vh;overflow:auto;text-align:center;');
+                        box.appendChild(el('div', 'font-size:2rem;', ICONS[o.icon] || ''));
+                        box.appendChild(el('h2', 'margin:8px 0;', esc(o.title)));
+                        box.appendChild(o.html ? el('div', '', o.html) : el('p', 'color:#9ca3af;line-height:1.5;', esc(o.text)));
+                        var row = el('div', 'display:flex;gap:10px;justify-content:center;margin-top:16px;');
+                        function done(v) { close(); resolve({ isConfirmed: v, isDismissed: !v }); }
+                        if (o.showConfirmButton !== false) {
+                            var ok = el('button', 'padding:10px 20px;border:none;border-radius:6px;font-weight:800;cursor:pointer;color:#000;background:' + (o.confirmButtonColor || '#f59e0b') + ';', esc(o.confirmButtonText || 'OK'));
+                            ok.onclick = function () { done(true); };
+                            row.appendChild(ok);
+                        }
+                        if (o.showCancelButton) {
+                            var no = el('button', 'padding:10px 20px;border:1px solid #1f293d;border-radius:6px;font-weight:800;cursor:pointer;background:#374151;color:#fff;', esc(o.cancelButtonText || 'Cancel'));
+                            no.onclick = function () { done(false); };
+                            row.appendChild(no);
+                        }
+                        box.appendChild(row); ov.appendChild(box);
+                        if (o.allowOutsideClick !== false && o.showConfirmButton !== false) ov.onclick = function (e) { if (e.target === ov) done(false); };
+                        document.body.appendChild(ov); current = ov;
+                    });
+                }
+                return { fire: fire, close: close };
+            })();
+        }
+    </script>
     <style>
         :root {
             --bg: #090d16; --panel: #111827; --panel-border: #1f293d;
@@ -132,9 +192,14 @@
 
 <div class="container">
     <header>
-        <div class="logo">🏏 IPL MEGA AUCTION PRO <small style="font-size:0.6rem; color:var(--text-sub);">v2.2</small></div>
+        <div class="logo">🏏 IPL MEGA AUCTION PRO <small style="font-size:0.6rem; color:var(--text-sub);">v3.0 · pause + hologram</small></div>
         <div id="server-status" style="font-weight:700; color:var(--text-sub);">Connecting...</div>
     </header>
+
+    <div id="version-warn" class="hidden" style="background:#7f1d1d; color:#fecaca; border:1px solid #ef4444; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-weight:700; line-height:1.4;">
+        ⚠ The server is still running OLD code (no pause / hologram / fixed hammer support).
+        Deploy the new <code>server.js</code> (on Render: push it and wait for the redeploy), then refresh this page.
+    </div>
 
     <!-- 1. LOGIN -->
     <div id="view-login" class="auth-container">
@@ -332,10 +397,8 @@
         throw new Error('socket.io client not loaded (page: ' + location.href + ')');
     }
 
-    // On Render: connect to the same origin. Anywhere else (Netlify, local file): connect to the Render backend.
-    const SERVER_URL = location.hostname.endsWith('onrender.com')
-        ? undefined
-        : 'https://auction-simulator-3.onrender.com';
+    // Same origin on Render/localhost/LAN, Render backend anywhere else (decided in <head>)
+    const SERVER_URL = window.__SERVER_BASE || undefined;
 
     const socket = io(SERVER_URL, {
         transports: ['websocket', 'polling'],
@@ -355,8 +418,13 @@
     let connectAttempts = 0;
     setStatus('⏳ Connecting to server... (may take up to a minute if it was asleep)', 'var(--text-sub)');
 
+    let serverInfoSeen = false;
+    socket.on('serverInfo', () => { serverInfoSeen = true; $('version-warn').classList.add('hidden'); });
+
     socket.on('connect', () => {
         connectAttempts = 0;
+        serverInfoSeen = false;
+        setTimeout(() => { if (!serverInfoSeen && socket.connected) $('version-warn').classList.remove('hidden'); }, 5000);
         setStatus('🟢 Connected', 'var(--green)');
         const savedRoom = safeGet(sessionStorage, 'active_auction_room');
         if (savedRoom) {
