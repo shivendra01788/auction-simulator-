@@ -47,9 +47,6 @@ function calculateDepartmentRating(bat, bowl, fld) {
 }
 
 // ---------- Player pool ----------
-// Row format: [name, roleCode, country, basePrice, bat, bowl, fld]
-// roleCode: B=Batsman, W=Wicket-keeper, A=All-rounder, O=Bowler, S=Bowler (spinner; only matters for uncapped category)
-// A player is overseas when country !== "IND".
 const ROLE_NAMES = { B: "Batsman", W: "Wicket-keeper", A: "All-rounder", O: "Bowler", S: "Bowler" };
 const UNCAPPED_CAT = { B: "Uncapped Batter", W: "Uncapped Keeper", A: "Uncapped All-rounder", O: "Uncapped Bowler", S: "Uncapped Spinner" };
 
@@ -242,7 +239,7 @@ function generatePlayerPool() {
 
     ROSTER_GROUPS.forEach(group => {
         group.rows.forEach(([name, code, country, basePrice, bat, bowl, fld]) => {
-            if (seen.has(name)) return; // safety net against duplicates
+            if (seen.has(name)) return;
             seen.add(name);
             pool.push({
                 id: id++,
@@ -312,7 +309,6 @@ function handleAuctionEnd(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
 
-    // Guard: resolve each player exactly once (prevents double-hammer skipping players)
     if (!room.auction.active) return;
     room.auction.active = false;
     clearInterval(room.timerInterval);
@@ -342,6 +338,9 @@ function handleAuctionEnd(roomCode) {
     });
 
     setTimeout(() => {
+        // Guard if phase changed (e.g. host ended auction during the resolution delay)
+        if (room.phase !== "AUCTION") return;
+
         room.currentPlayerIndex++;
         if (room.currentPlayerIndex < room.playerQueue.length) {
             const nextPlayer = room.playerQueue[room.currentPlayerIndex];
@@ -531,7 +530,6 @@ io.on('connection', (socket) => {
         if (!room) return socket.emit('errorMsg', "Session not found.");
         if (!TEAM_CODES.includes(franchiseBase)) return socket.emit('errorMsg', "Unknown franchise.");
 
-        // Already claimed by this user (double-tap / reconnect): just re-confirm
         for (const key in room.teams) {
             if (room.teams[key].userId === socket.userId) {
                 room.teams[key].claimedBy = socket.id;
@@ -618,7 +616,6 @@ io.on('connection', (socket) => {
             return socket.emit('errorMsg', "You must claim a franchise before bidding!");
         }
 
-        // Can't outbid yourself
         if (room.auction.highestBidder === teamKey) return;
 
         const team = room.teams[teamKey];
@@ -645,7 +642,7 @@ io.on('connection', (socket) => {
 
         room.auction.highestBid = nextBid;
         room.auction.highestBidder = teamKey;
-        room.auction.timer = Math.max(room.auction.timer, 10); // anti-sniping: every bid guarantees 10s left
+        room.auction.timer = Math.max(room.auction.timer, 10);
 
         io.to(roomCode).emit('bidUpdated', {
             highestBid: nextBid,
@@ -724,9 +721,7 @@ io.on('connection', (socket) => {
         handleAuctionEnd(socket.roomCode);
     });
 
-    // Host ends the auction early: whatever is in progress is left unsold,
-    // remaining un-auctioned players are skipped, and everyone moves straight
-    // to the Playing XI selection phase.
+    // ADMIN END AUCTION EARLY
     socket.on('adminEndAuction', () => {
         const room = rooms[socket.roomCode];
         if (!room || socket.id !== room.host || room.phase !== "AUCTION") return;
