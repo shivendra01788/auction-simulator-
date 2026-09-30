@@ -82,6 +82,49 @@
         .tag-cap { font-size: 0.75rem; background: #f59e0b; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: 800; cursor: pointer; }
         .tag-vc { font-size: 0.75rem; background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 800; cursor: pointer; }
 
+
+        .btn-bid:disabled, .btn-skip:disabled { opacity: .45; cursor: not-allowed; }
+        .skip-info { margin-top: 10px; font-size: .8rem; color: var(--text-sub); min-height: 1.1em; }
+        .pause-banner { background: linear-gradient(90deg,#78350f,#b45309,#78350f); color: #fff; font-weight: 800; letter-spacing: 1px; padding: 10px; border-radius: 8px; margin-bottom: 12px; animation: pausePulse 1.4s ease-in-out infinite; }
+        @keyframes pausePulse { 50% { opacity: .6; } }
+        .btn-host { padding: 8px 14px; border: none; border-radius: 6px; color: #fff; font-weight: 700; cursor: pointer; }
+
+        /* ---------- Shared hologram ---------- */
+        .holo-stage { --h: 200; position: relative; margin: 4px auto 16px; max-width: 540px; padding: 16px 10px 30px; perspective: 900px; touch-action: pan-y; cursor: crosshair; user-select: none; }
+        .holo-beam { position: absolute; left: 50%; bottom: 14px; width: 80%; height: 92%; transform: translateX(-50%); background: linear-gradient(to top, hsl(var(--h) 100% 60% / .28), transparent 85%); clip-path: polygon(22% 100%, 78% 100%, 100% 0, 0 0); pointer-events: none; }
+        .holo-base { position: absolute; left: 50%; bottom: 6px; width: 72%; height: 22px; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(ellipse at center, hsl(var(--h) 100% 70% / .9), hsl(var(--h) 100% 50% / .25) 55%, transparent 72%); box-shadow: 0 0 24px hsl(var(--h) 100% 60% / .7); pointer-events: none; }
+        .holo { position: relative; display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; padding: 16px 18px; border: 1px solid hsl(var(--h) 100% 60% / .55); border-radius: 14px; background: linear-gradient(160deg, hsl(var(--h) 100% 50% / .16), hsl(var(--h) 100% 50% / .04)); box-shadow: 0 0 22px hsl(var(--h) 100% 60% / .25), inset 0 0 28px hsl(var(--h) 100% 60% / .12); transform-style: preserve-3d; transition: transform .15s ease-out, filter .4s; overflow: hidden; }
+        .holo::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(to bottom, transparent 0 3px, hsl(var(--h) 100% 70% / .07) 3px 4px); pointer-events: none; }
+        .holo-scan { position: absolute; left: 0; right: 0; height: 36px; top: -40px; background: linear-gradient(to bottom, transparent, hsl(var(--h) 100% 70% / .35), transparent); animation: holoScan 3.2s linear infinite; pointer-events: none; }
+        @keyframes holoScan { to { top: 110%; } }
+        .holo-figure { position: relative; width: 108px; height: 118px; flex: none; animation: holoFloat 3.4s ease-in-out infinite; }
+        @keyframes holoFloat { 50% { transform: translateY(-6px); } }
+        .holo-svg { width: 100%; height: 100%; fill: hsl(var(--h) 100% 60% / .22); stroke: hsl(var(--h) 100% 70%); stroke-width: 1.5; filter: drop-shadow(0 0 6px hsl(var(--h) 100% 60%)); animation: holoFlicker 5s infinite; }
+        @keyframes holoFlicker { 0%,92%,100% { opacity: 1; } 93% { opacity: .5; } 95% { opacity: .9; } 97% { opacity: .6; } }
+        .holo-initials { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; font-weight: 900; font-size: 1.5rem; color: #fff; text-shadow: 0 0 10px hsl(var(--h) 100% 65%); letter-spacing: 2px; }
+        .holo-info { display: flex; flex-direction: column; gap: 10px; min-width: 160px; text-align: left; }
+        .holo-tag { font-size: .75rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: hsl(var(--h) 100% 78%); text-shadow: 0 0 8px hsl(var(--h) 100% 60%); }
+        .holo-rating-row { display: flex; align-items: center; gap: 12px; }
+        .holo-rating { --r: 80; width: 62px; height: 62px; border-radius: 50%; flex: none; background: conic-gradient(hsl(var(--h) 100% 65%) calc(var(--r) * 1%), hsl(var(--h) 40% 25% / .5) 0); display: grid; place-items: center; position: relative; transition: background .6s; }
+        .holo-rating::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: #07111c; }
+        .holo-rating-in { position: relative; z-index: 1; text-align: center; line-height: 1; font-weight: 900; font-size: 1.2rem; color: #fff; }
+        .holo-rating-in small { display: block; font-size: .5rem; letter-spacing: 1px; color: hsl(var(--h) 100% 78%); margin-top: 2px; }
+        .holo-base-price { font-size: .75rem; color: hsl(var(--h) 100% 85%); }
+        .holo-bar { display: grid; grid-template-columns: 34px 1fr 26px; align-items: center; gap: 6px; font-size: .7rem; color: hsl(var(--h) 100% 80%); font-weight: 700; }
+        .holo-bar i { height: 6px; border-radius: 3px; background: hsl(var(--h) 60% 30% / .5); overflow: hidden; }
+        .holo-bar b { display: block; height: 100%; width: 0; background: linear-gradient(90deg, hsl(var(--h) 100% 55%), hsl(var(--h) 100% 75%)); box-shadow: 0 0 8px hsl(var(--h) 100% 65%); transition: width .7s ease; }
+        .holo.materialize { animation: holoIn .7s ease-out; }
+        @keyframes holoIn { from { opacity: 0; transform: scale(.85) rotateX(40deg); filter: blur(6px) brightness(2); } }
+        .holo.pulse { animation: holoPulse .6s ease-out; }
+        @keyframes holoPulse { 30% { box-shadow: 0 0 55px hsl(var(--h) 100% 65% / .95), inset 0 0 40px hsl(var(--h) 100% 65% / .35); filter: brightness(1.5); } }
+        .holo-stamp { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%) rotate(-10deg); padding: 6px 22px; border: 4px solid; border-radius: 10px; font-weight: 900; font-size: 2rem; letter-spacing: 4px; background: rgba(5,10,20,.78); text-align: center; z-index: 3; animation: stampIn .35s cubic-bezier(.2,1.6,.4,1); }
+        .holo-stamp small { display: block; font-size: .7rem; letter-spacing: 1px; font-weight: 700; }
+        .holo-stamp.sold { color: #34d399; border-color: #34d399; text-shadow: 0 0 12px #10b981; }
+        .holo-stamp.unsold { color: #f87171; border-color: #f87171; text-shadow: 0 0 12px #ef4444; }
+        @keyframes stampIn { from { transform: translate(-50%,-50%) rotate(-10deg) scale(2.4); opacity: 0; } }
+        .holo-stage.paused .holo { filter: grayscale(.85) brightness(.55); }
+        .holo-stage.paused .holo-scan, .holo-stage.paused .holo-figure { animation-play-state: paused; }
+
         .hidden { display: none !important; }
     </style>
 </head>
@@ -153,10 +196,35 @@
     <div id="view-arena" class="hidden">
         <div class="arena-grid">
             <div class="card stage-center">
+                <div id="pause-banner" class="pause-banner hidden">⏸ AUCTION PAUSED BY THE HOST</div>
                 <div class="pill-row">
                     <span class="pill pill-cat" id="player-cat">Marquee</span>
                     <span class="pill pill-ind" id="player-origin">Domestic</span>
                 </div>
+                <!-- Shared hologram: driven by the same server events, so everyone sees the same thing -->
+                <div class="holo-stage" id="holo-stage" title="Move your mouse / finger over it to tilt the hologram">
+                    <div class="holo-beam"></div>
+                    <div class="holo" id="holo">
+                        <div class="holo-scan"></div>
+                        <div class="holo-figure">
+                            <svg class="holo-svg" viewBox="0 0 100 110"><circle cx="50" cy="34" r="18"/><path d="M14 104c0-24 16-38 36-38s36 14 36 38z"/></svg>
+                            <div class="holo-initials" id="holo-initials">--</div>
+                        </div>
+                        <div class="holo-info">
+                            <div class="holo-tag" id="holo-tag">Role | Country</div>
+                            <div class="holo-rating-row">
+                                <div class="holo-rating" id="holo-rating"><div class="holo-rating-in"><span id="holo-rating-val">0</span><small>OVR</small></div></div>
+                                <div class="holo-base-price" id="holo-base">Base<br><strong>₹0.00 Cr</strong></div>
+                            </div>
+                            <div class="holo-bar"><span>BAT</span><i><b id="hb-bat"></b></i><span id="hv-bat">0</span></div>
+                            <div class="holo-bar"><span>BOWL</span><i><b id="hb-bowl"></b></i><span id="hv-bowl">0</span></div>
+                            <div class="holo-bar"><span>FLD</span><i><b id="hb-fld"></b></i><span id="hv-fld">0</span></div>
+                        </div>
+                        <div class="holo-stamp hidden" id="holo-stamp"></div>
+                    </div>
+                    <div class="holo-base"></div>
+                </div>
+
                 <div class="player-headline" id="player-name">Waiting...</div>
                 <div class="player-specs" id="player-specs">Loading attributes...</div>
 
@@ -172,8 +240,10 @@
                     <button id="bid-button" class="btn-bid" onclick="placeBid()">RAISE BID 🔨</button>
                     <button id="skip-button" class="btn-skip" onclick="skipPlayer()">SKIP ⏩</button>
                 </div>
+                <div class="skip-info" id="skip-info"></div>
 
                 <div id="host-controls" class="hidden" style="margin-top:15px; gap:10px; justify-content:center; flex-wrap:wrap;">
+                    <button id="pause-button" class="btn-host" style="background:#b45309;" onclick="togglePause()">⏸ Pause</button>
                     <button style="padding:8px 14px; background:var(--green); color:#fff; border:none; border-radius:6px;" onclick="adminSold()">Hammer (Sold)</button>
                     <button style="padding:8px 14px; background:var(--red); color:#fff; border:none; border-radius:6px;" onclick="adminUnsold()">Hammer (Unsold)</button>
                     <button style="padding:8px 14px; background:#374151; color:#fff; border:1px solid var(--panel-border); border-radius:6px;" onclick="endAuctionByAdmin()">⏹ End Auction</button>
@@ -250,6 +320,10 @@
     let isAuctioneer = false;
     let localUsername = safeGet(sessionStorage, 'active_auction_name') || '';
     let mySquadData = [];
+    let isPaused = false;
+    let iSkipped = false;
+    let resolving = false;
+    let lastHoloPlayerId = null;
     window.lastTournamentResults = null;
 
     // ---------- socket (same origin as this page) ----------
@@ -286,7 +360,10 @@
         setStatus('🟢 Connected', 'var(--green)');
         const savedRoom = safeGet(sessionStorage, 'active_auction_room');
         if (savedRoom) {
-            socket.emit('rejoinSession', { roomCode: savedRoom, userId, username: localUsername });
+            socket.emit('rejoinSession', {
+                roomCode: savedRoom, userId, username: localUsername,
+                asHost: safeGet(sessionStorage, 'active_auction_role') === 'host'
+            });
         }
     });
 
@@ -313,6 +390,7 @@
         const username = $('host-name').value.trim() || 'Host';
         localUsername = username;
         safeSet(sessionStorage, 'active_auction_name', username);
+        safeSet(sessionStorage, 'active_auction_role', 'host');
         socket.emit('createRoom', { username, userId });
     }
 
@@ -323,6 +401,7 @@
         localUsername = username;
         safeSet(sessionStorage, 'active_auction_name', username);
         safeSet(sessionStorage, 'active_auction_room', roomCode);
+        safeSet(sessionStorage, 'active_auction_role', 'player');
         socket.emit('joinRoom', { roomCode, username, userId });
     }
 
@@ -330,6 +409,7 @@
     function launchAuction() { socket.emit('startAuctionByAdmin'); }
     function placeBid() { socket.emit('placeBid'); }
     function skipPlayer() { socket.emit('skipForMe'); }
+    function togglePause() { socket.emit(isPaused ? 'adminResume' : 'adminPause'); }
     function adminSold() { socket.emit('adminForceSold'); }
     function adminUnsold() { socket.emit('adminForceUnsold'); }
 
@@ -377,6 +457,8 @@
 
     socket.on('teamConfirmed', (data) => {
         myTeamKey = data.teamKey;
+        isPaused = !!data.paused;
+        iSkipped = !!data.iSkipped;
         if (!data.isStarted) {
             showOnly('view-participant-waiting');
             $('waiting-team-name').innerText = `${data.displayName} (${localUsername})`;
@@ -386,6 +468,8 @@
     });
 
     socket.on('auctionStartedNow', (data) => {
+        isPaused = false;
+        iSkipped = false;
         enterArena(data.auction, data.currentIndex, data.totalPlayers, data.teams);
     });
 
@@ -394,6 +478,8 @@
         currentRoom = data.roomCode;
         isAuctioneer = !!data.isHost;
         myTeamKey = data.myTeamKey;
+        isPaused = !!data.paused;
+        iSkipped = !!data.iSkipped;
 
         if (data.phase === 'SELECTION') {
             return showSelection(data.teams);
@@ -421,6 +507,7 @@
 
     socket.on('sessionExpired', () => {
         safeRemove(sessionStorage, 'active_auction_room');
+        safeRemove(sessionStorage, 'active_auction_role');
         myTeamKey = null;
         isAuctioneer = false;
         showOnly('view-login');
@@ -450,10 +537,51 @@
         if (auction && auction.player) {
             renderPlayer(auction.player, current || 1, total || 1);
             $('lead-price').innerText = `₹${auction.highestBid.toFixed(2)} Cr`;
-            $('lead-team').innerText = auction.highestBidder === 'No Bids' ? 'No Bids Placed' : `Leading: ${auction.highestBidder}`;
+            const leaderName = auction.highestBidder !== 'No Bids' && teams && teams[auction.highestBidder]
+                ? teams[auction.highestBidder].displayName : auction.highestBidder;
+            $('lead-team').innerText = auction.highestBidder === 'No Bids' ? 'No Bids Placed' : `Leading: ${leaderName}`;
             $('timer-val').innerText = auction.timer;
+            resolving = !auction.active && auction.highestBidder !== undefined && !!auction.status;
         }
+        applyPauseUI();
+        refreshControls();
     }
+
+    // ---------- pause / skip UI ----------
+    function refreshControls() {
+        const locked = isPaused || iSkipped || resolving;
+        $('bid-button').disabled = isPaused || resolving;
+        $('skip-button').disabled = locked;
+        $('skip-button').innerText = iSkipped ? 'SKIPPED ✓' : 'SKIP ⏩';
+    }
+
+    function applyPauseUI() {
+        $('pause-banner').classList.toggle('hidden', !isPaused);
+        $('holo-stage').classList.toggle('paused', isPaused);
+        const pb = $('pause-button');
+        if (pb) {
+            pb.innerText = isPaused ? '▶ Resume' : '⏸ Pause';
+            pb.style.background = isPaused ? 'var(--green)' : '#b45309';
+        }
+        refreshControls();
+    }
+
+    socket.on('auctionPaused', (data) => {
+        isPaused = true;
+        if (data && data.timer != null) $('timer-val').innerText = data.timer;
+        applyPauseUI();
+    });
+
+    socket.on('auctionResumed', () => {
+        isPaused = false;
+        applyPauseUI();
+    });
+
+    socket.on('skipAck', () => { iSkipped = true; refreshControls(); });
+
+    socket.on('skipUpdate', (d) => {
+        $('skip-info').innerText = d.skipped > 0 ? `⏩ ${d.skipped} of ${d.total} managers have passed on this player` : '';
+    });
 
     socket.on('updateTeams', (data) => {
         if (isAuctioneer) updateAdminLobby(data.teams, data.claimedCount);
@@ -476,12 +604,18 @@
     socket.on('timerUpdate', val => { $('timer-val').innerText = val; });
 
     socket.on('bidUpdated', data => {
+        holoPulse();
         $('lead-price').innerText = `₹${data.highestBid.toFixed(2)} Cr`;
         $('lead-team').innerText = `Leading: ${data.highestBidder}`;
         $('timer-val').innerText = data.timer;
     });
 
     socket.on('nextPlayer', data => {
+        iSkipped = false;
+        resolving = false;
+        $('skip-info').innerText = '';
+        $('holo-stamp').classList.add('hidden');
+        refreshControls();
         renderPlayer(data.auction.player, data.currentIndex, data.totalPlayers);
         $('lead-price').innerText = `₹${data.auction.highestBid.toFixed(2)} Cr`;
         $('lead-team').innerText = 'No Bids Placed';
@@ -490,6 +624,9 @@
     });
 
     socket.on('playerResolved', data => {
+        resolving = true;
+        refreshControls();
+        showHoloStamp(data.isSold, data.status);
         $('player-name').innerText = data.status;
         if (myTeamKey && data.teams[myTeamKey]) updateDashboard(data.teams[myTeamKey]);
     });
@@ -499,7 +636,71 @@
         $('player-origin').innerText = p.isOverseas ? `${p.country} ✈️` : 'India 🇮🇳';
         $('player-name').innerText = p.name;
         $('player-specs').innerText = `Role: ${p.role} | BAT: ${p.bat} | BOWL: ${p.bowl} | FLD: ${p.fld} | Base: ₹${p.basePrice.toFixed(2)} Cr`;
+        renderHolo(p);
     }
+
+    // ---------- shared hologram ----------
+    const ROLE_HOLO = {
+        'Batsman':       { hue: 200, icon: '🏏' },
+        'Bowler':        { hue: 350, icon: '🎯' },
+        'All-rounder':   { hue: 275, icon: '⚡' },
+        'Wicket-keeper': { hue: 145, icon: '🧤' }
+    };
+
+    function initialsOf(name) {
+        const parts = String(name).replace(/[^A-Za-z\s.\-]/g, '').split(/[\s.\-]+/).filter(Boolean);
+        if (!parts.length) return '--';
+        return (parts.length === 1 ? parts[0].slice(0, 2) : parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+
+    function restartAnim(el, cls) {
+        el.classList.remove('materialize', 'pulse');
+        void el.offsetWidth;            // force reflow so the animation can replay
+        el.classList.add(cls);
+    }
+
+    function renderHolo(p) {
+        const cfg = ROLE_HOLO[p.role] || ROLE_HOLO['Batsman'];
+        $('holo-stage').style.setProperty('--h', cfg.hue);
+        $('holo-initials').innerText = initialsOf(p.name);
+        $('holo-tag').innerText = `${cfg.icon} ${p.role} • ${p.country}`;
+        $('holo-rating-val').innerText = p.rating;
+        $('holo-rating').style.setProperty('--r', Math.min(100, p.rating));
+        $('holo-base').innerHTML = `Base<br><strong>₹${p.basePrice.toFixed(2)} Cr</strong>`;
+        [['bat', p.bat], ['bowl', p.bowl], ['fld', p.fld]].forEach(([k, v]) => {
+            $('hb-' + k).style.width = v + '%';
+            $('hv-' + k).innerText = v;
+        });
+        if (lastHoloPlayerId !== p.id) {
+            lastHoloPlayerId = p.id;
+            restartAnim($('holo'), 'materialize');
+        }
+    }
+
+    function holoPulse() { restartAnim($('holo'), 'pulse'); }
+
+    function showHoloStamp(isSold, status) {
+        const st = $('holo-stamp');
+        st.className = 'holo-stamp ' + (isSold ? 'sold' : 'unsold');
+        const detail = isSold ? String(status).replace(/^SOLD\s*/i, '') : '';
+        st.innerHTML = (isSold ? 'SOLD' : 'UNSOLD') + (detail ? `<small>${esc(detail)}</small>` : '');
+        // replay the stamp animation
+        st.style.animation = 'none'; void st.offsetWidth; st.style.animation = '';
+    }
+
+    // Tilt the hologram with mouse / touch (purely local, just for fun)
+    (function initHoloTilt() {
+        const stage = $('holo-stage'), holo = $('holo');
+        function tilt(e) {
+            const r = stage.getBoundingClientRect();
+            const x = (e.clientX - r.left) / r.width - 0.5;
+            const y = (e.clientY - r.top) / r.height - 0.5;
+            holo.style.transform = `rotateY(${(x * 26).toFixed(1)}deg) rotateX(${(-y * 20).toFixed(1)}deg)`;
+        }
+        stage.addEventListener('pointermove', tilt);
+        stage.addEventListener('pointerdown', tilt);
+        stage.addEventListener('pointerleave', () => { holo.style.transform = ''; });
+    })();
 
     function updateDashboard(team) {
         mySquadData = team.squad;
