@@ -273,29 +273,42 @@ function createRoom(roomCode, hostSocketId, hostUserId) {
         phase: "LOBBY",
         isStarted: false,
         skippedBy: new Set(),
+        paused: false,
+        pendingAdvance: false,
         auction: {
             player: playerQueue[0],
             highestBid: playerQueue[0].basePrice,
             highestBidder: "No Bids",
             timer: 12,
-            active: false,
-            isPaused: false
+            active: false
         }
     };
 }
 
+// Starts a FRESH 12s countdown for the player now on the block
 function startRoomTimer(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
 
-    clearInterval(room.timerInterval);
     room.auction.timer = 12;
     room.auction.active = true;
     room.skippedBy.clear();
 
     io.to(roomCode).emit('timerUpdate', room.auction.timer);
+    io.to(roomCode).emit('skipUpdate', { skipped: 0, total: Object.keys(room.teams).length });
+    runRoomTimer(roomCode);
+}
+
+// (Re)starts the 1-second ticking WITHOUT resetting the remaining time (used by resume)
+function runRoomTimer(roomCode) {
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    clearInterval(room.timerInterval);
+    if (room.paused) return;
 
     room.timerInterval = setInterval(() => {
+        if (room.paused) return;
         if (room.auction.timer > 0) {
             room.auction.timer--;
             io.to(roomCode).emit('timerUpdate', room.auction.timer);
@@ -304,6 +317,36 @@ function startRoomTimer(roomCode) {
             handleAuctionEnd(roomCode);
         }
     }, 1000);
+}
+
+function advanceToNextPlayer(roomCode) {
+    const room = rooms[roomCode];
+    // Guard if phase changed (e.g. host ended auction during the resolution delay)
+    if (!room || room.phase !== "AUCTION") return;
+
+    room.pendingAdvance = false;
+    room.currentPlayerIndex++;
+
+    if (room.currentPlayerIndex < room.playerQueue.length) {
+        const nextPlayer = room.playerQueue[room.currentPlayerIndex];
+        room.auction = {
+            player: nextPlayer,
+            highestBid: nextPlayer.basePrice,
+            highestBidder: "No Bids",
+            timer: 12,
+            active: true
+        };
+        io.to(roomCode).emit('nextPlayer', {
+            auction: room.auction,
+            teams: room.teams,
+            currentIndex: room.currentPlayerIndex + 1,
+            totalPlayers: room.playerQueue.length
+        });
+        startRoomTimer(roomCode);
+    } else {
+        room.phase = "SELECTION";
+        io.to(roomCode).emit('startSelectionPhase', { teams: room.teams });
+    }
 }
 
 function handleAuctionEnd(roomCode) {
@@ -339,32 +382,35 @@ function handleAuctionEnd(roomCode) {
     });
 
     setTimeout(() => {
-        // Guard if phase changed (e.g. host ended auction during the resolution delay)
         if (room.phase !== "AUCTION") return;
-
-        room.currentPlayerIndex++;
-        if (room.currentPlayerIndex < room.playerQueue.length) {
-            const nextPlayer = room.playerQueue[room.currentPlayerIndex];
-            room.auction = {
-                player: nextPlayer,
-                highestBid: nextPlayer.basePrice,
-                highestBidder: "No Bids",
-                timer: 12,
-                active: true,
-                isPaused: false
-            };
-            io.to(roomCode).emit('nextPlayer', {
-                auction: room.auction,
-                teams: room.teams,
-                currentIndex: room.currentPlayerIndex + 1,
-                totalPlayers: room.playerQueue.length
-            });
-            startRoomTimer(roomCode);
-        } else {
-            room.phase = "SELECTION";
-            io.to(roomCode).emit('startSelectionPhase', { teams: room.teams });
-        }
+        // If the host paused during the result screen, wait here until they resume
+        room.pendingAdvance = true;
+        if (!room.paused) advanceToNextPlayer(roomCode);
     }, 2500);
+}
+
+// Ends the current player early when every team has either skipped or is already the leader.
+function checkAllPassed(roomCode) {
+    const room = rooms[roomCode];
+    if (!room || !room.auction.active || room.paused) return;
+
+    const keys = Object.keys(room.teams);
+    if (keys.length === 0) return;
+
+    const leader = room.auction.highestBidder;
+    const everyoneDone = keys.every(k => k === leader || room.skippedBy.has(k));
+    if (everyoneDone) handleAuctionEnd(roomCode);
+}
+
+// Returns the room only if this socket is the host; otherwise tells the user why.
+function requireHost(socket) {
+    const room = rooms[socket.roomCode];
+    if (!room) { socket.emit('errorMsg', "Room not found. Refresh the page to reconnect."); return null; }
+    if (socket.id !== room.host) {
+        socket.emit('errorMsg', "This device isn't linked as the host any more (another tab/device took over). Refresh this page to regain host control.");
+        return null;
+    }
+    return room;
 }
 
 function calculateFinalStandings(room) {
@@ -448,7 +494,7 @@ io.on('connection', (socket) => {
         console.log(`[-] ${socket.id} (${reason})`);
     });
 
-    socket.on('rejoinSession', ({ roomCode, userId, username }) => {
+    socket.on('rejoinSession', ({ roomCode, userId, username, asHost }) => {
         const room = rooms[roomCode];
         if (!room) return socket.emit('sessionExpired', "Room session expired.");
 
@@ -458,14 +504,16 @@ io.on('connection', (socket) => {
         if (username) socket.username = username;
 
         // Host reconnect: restore control on the new socket id
-        if (room.hostUserId === userId) {
+        // (only when this tab says it WAS the host - otherwise a player tab opened in the
+        //  same browser would steal host control from the real host)
+        if (asHost && room.hostUserId === userId) {
             room.host = socket.id;
             socket.isHost = true;
         }
 
-        // Player reconnect: re-attach to their franchise
+        // Player reconnect: re-attach to their franchise (never for the host socket)
         for (const key in room.teams) {
-            if (room.teams[key].userId === userId) {
+            if (!socket.isHost && room.teams[key].userId === userId) {
                 room.teams[key].claimedBy = socket.id;
                 socket.claimedTeamKey = key;
                 socket.username = room.teams[key].claimedByName;
@@ -481,6 +529,8 @@ io.on('connection', (socket) => {
             auction: room.auction,
             teams: room.teams,
             teamCodes: TEAM_CODES,
+            paused: room.paused,
+            iSkipped: !!socket.claimedTeamKey && room.skippedBy.has(socket.claimedTeamKey),
             myTeamKey: socket.claimedTeamKey || null,
             currentIndex: room.currentPlayerIndex + 1,
             totalPlayers: room.playerQueue.length
@@ -543,6 +593,8 @@ io.on('connection', (socket) => {
                     isStarted: room.isStarted,
                     teams: room.teams,
                     auction: room.auction,
+                    paused: room.paused,
+                    iSkipped: room.skippedBy.has(key),
                     currentIndex: room.currentPlayerIndex + 1,
                     totalPlayers: room.playerQueue.length
                 });
@@ -579,6 +631,8 @@ io.on('connection', (socket) => {
             isStarted: room.isStarted,
             teams: room.teams,
             auction: room.auction,
+            paused: room.paused,
+            iSkipped: false,
             currentIndex: room.currentPlayerIndex + 1,
             totalPlayers: room.playerQueue.length
         });
@@ -611,12 +665,15 @@ io.on('connection', (socket) => {
     socket.on('placeBid', () => {
         const roomCode = socket.roomCode;
         const room = rooms[roomCode];
-        // Stop users from bidding if the auction is paused
-        if (!room || !room.auction.active || room.auction.isPaused) return;
+        if (!room || !room.auction.active) return;
+        if (room.paused) return socket.emit('errorMsg', "The auction is paused by the host.");
 
         const teamKey = socket.claimedTeamKey;
         if (!teamKey || !room.teams[teamKey]) {
             return socket.emit('errorMsg', "You must claim a franchise before bidding!");
+        }
+        if (room.skippedBy.has(teamKey)) {
+            return socket.emit('errorMsg', "You skipped this player - wait for the next one.");
         }
 
         if (room.auction.highestBidder === teamKey) return;
@@ -655,16 +712,28 @@ io.on('connection', (socket) => {
     });
 
     socket.on('skipForMe', () => {
-        const room = rooms[socket.roomCode];
-        // Stop skips from registering while the game is paused
-        if (!room || !room.auction.active || room.auction.isPaused || !socket.claimedTeamKey) return;
+        const roomCode = socket.roomCode;
+        const room = rooms[roomCode];
+        if (!room || !room.auction.active) return;
+        if (room.paused) return socket.emit('errorMsg', "The auction is paused by the host.");
 
-        room.skippedBy.add(socket.claimedTeamKey);
-        const totalManagers = Object.keys(room.teams).length;
-
-        if (room.skippedBy.size >= totalManagers && room.auction.highestBidder === "No Bids") {
-            room.auction.timer = 1;
+        const teamKey = socket.claimedTeamKey;
+        if (!teamKey || !room.teams[teamKey]) {
+            return socket.emit('errorMsg', "You must claim a franchise first.");
         }
+        if (room.auction.highestBidder === teamKey) {
+            return socket.emit('errorMsg', "You're the highest bidder - you can't skip this player.");
+        }
+
+        room.skippedBy.add(teamKey);
+        socket.emit('skipAck');
+        io.to(roomCode).emit('skipUpdate', {
+            skipped: room.skippedBy.size,
+            total: Object.keys(room.teams).length
+        });
+
+        // Everyone else has passed -> hammer falls straight away
+        checkAllPassed(roomCode);
     });
 
     socket.on('submitPlaying11', ({ selectedPlayerIds, captainId, viceCaptainId }) => {
@@ -713,45 +782,47 @@ io.on('connection', (socket) => {
     });
 
     socket.on('adminForceSold', () => {
-        const room = rooms[socket.roomCode];
-        if (!room || socket.id !== room.host || !room.auction.active) return;
+        const room = requireHost(socket);
+        if (!room) return;
+        if (!room.auction.active) return socket.emit('errorMsg', "No player is on the block right now - wait for the next one.");
+        if (room.auction.highestBidder === "No Bids") {
+            return socket.emit('errorMsg', "There are no bids yet, so there's no buyer. Use 'Hammer (Unsold)' instead.");
+        }
         handleAuctionEnd(socket.roomCode);
     });
 
     socket.on('adminForceUnsold', () => {
-        const room = rooms[socket.roomCode];
-        if (!room || socket.id !== room.host || !room.auction.active) return;
+        const room = requireHost(socket);
+        if (!room) return;
+        if (!room.auction.active) return socket.emit('errorMsg', "No player is on the block right now - wait for the next one.");
         room.auction.highestBidder = "No Bids";
         handleAuctionEnd(socket.roomCode);
     });
 
-    // ADMIN PAUSE AUCTION
-    socket.on('adminPauseAuction', () => {
-        const room = rooms[socket.roomCode];
-        if (!room || socket.id !== room.host || !room.auction.active || room.auction.isPaused) return;
-        
+    socket.on('adminPause', () => {
+        const room = requireHost(socket);
+        if (!room) return;
+        if (room.phase !== "AUCTION") return socket.emit('errorMsg', "The auction isn't running.");
+        if (room.paused) return;
+
+        room.paused = true;
         clearInterval(room.timerInterval);
-        room.auction.isPaused = true;
-        io.to(socket.roomCode).emit('auctionPaused');
+        io.to(socket.roomCode).emit('auctionPaused', { timer: room.auction.timer });
     });
 
-    // ADMIN RESUME AUCTION
-    socket.on('adminResumeAuction', () => {
-        const room = rooms[socket.roomCode];
-        if (!room || socket.id !== room.host || !room.auction.active || !room.auction.isPaused) return;
-        
-        room.auction.isPaused = false;
-        io.to(socket.roomCode).emit('auctionResumed');
-        
-        room.timerInterval = setInterval(() => {
-            if (room.auction.timer > 0) {
-                room.auction.timer--;
-                io.to(socket.roomCode).emit('timerUpdate', room.auction.timer);
-            } else {
-                clearInterval(room.timerInterval);
-                handleAuctionEnd(socket.roomCode);
-            }
-        }, 1000);
+    socket.on('adminResume', () => {
+        const room = requireHost(socket);
+        if (!room) return;
+        if (!room.paused) return;
+
+        room.paused = false;
+        io.to(socket.roomCode).emit('auctionResumed', { timer: room.auction.timer });
+
+        if (room.pendingAdvance) {
+            advanceToNextPlayer(socket.roomCode);          // result screen finished while paused
+        } else if (room.auction.active) {
+            runRoomTimer(socket.roomCode);                 // continue from the frozen time
+        }
     });
 
     // ADMIN END AUCTION EARLY
@@ -761,6 +832,8 @@ io.on('connection', (socket) => {
 
         clearInterval(room.timerInterval);
         room.auction.active = false;
+        room.paused = false;
+        room.pendingAdvance = false;
         room.phase = "SELECTION";
 
         io.to(socket.roomCode).emit('auctionEndedByAdmin');
