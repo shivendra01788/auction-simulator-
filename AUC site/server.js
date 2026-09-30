@@ -1,7 +1,10 @@
 const express = require('express');
 const http = require('http');
 const path = require('path');
+const fs = require('fs');
 const { Server } = require('socket.io');
+
+const VERSION = '3.0.0';   // pause + skip fix + hammer feedback + hologram
 
 const app = express();
 const server = http.createServer(app);
@@ -17,6 +20,20 @@ io.engine.on('connection_error', (err) => {
     console.log('[conn error]', err.code, err.message);
 });
 
+// Serve the NEWEST index.html, whether it sits in /public or right next to server.js.
+// (Prevents a stale copy in /public from hiding an updated one.)
+function pickIndexFile() {
+    const candidates = [path.join(__dirname, 'public', 'index.html'), path.join(__dirname, 'index.html')]
+        .filter(p => fs.existsSync(p));
+    candidates.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+    return candidates[0] || null;
+}
+app.get(['/', '/index.html'], (req, res) => {
+    const file = pickIndexFile();
+    if (!file) return res.status(404).send('index.html not found (put it next to server.js or in /public).');
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(file);
+});
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/ping', (req, res) => res.status(200).send('pong'));
 
@@ -489,6 +506,7 @@ function calculateFinalStandings(room) {
 // ---------- Sockets ----------
 io.on('connection', (socket) => {
     console.log(`[+] ${socket.id} (${socket.conn.transport.name})`);
+    socket.emit('serverInfo', { version: VERSION });
 
     socket.on('disconnect', (reason) => {
         console.log(`[-] ${socket.id} (${reason})`);
@@ -827,8 +845,9 @@ io.on('connection', (socket) => {
 
     // ADMIN END AUCTION EARLY
     socket.on('adminEndAuction', () => {
-        const room = rooms[socket.roomCode];
-        if (!room || socket.id !== room.host || room.phase !== "AUCTION") return;
+        const room = requireHost(socket);
+        if (!room) return;
+        if (room.phase !== "AUCTION") return socket.emit('errorMsg', "The auction isn't running.");
 
         clearInterval(room.timerInterval);
         room.auction.active = false;
@@ -843,6 +862,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Server v${VERSION} running on http://0.0.0.0:${PORT}`);
+    console.log(`Serving index.html from: ${pickIndexFile()}`);
     console.log(`Player pool: ${generatePlayerPool().length} unique players`);
 });
